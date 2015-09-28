@@ -5,6 +5,7 @@
 #include <nan.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sstream>
 #include "fsio.h"
 #include "poller.h"
 
@@ -207,8 +208,15 @@ NAN_METHOD(Write) {
     info.GetReturnValue().SetUndefined();
   } else { // sync
 #endif
-
     uint32_t result = (uint32_t) write(fd, buf, len);
+
+    if (result < 0) {
+      using namespace std;
+      stringstream s;
+      s << "Fail on write  " << errno << "  " << strerror(errno) << ".";
+      return Nan::ThrowError(s.str().c_str());
+    }
+
     info.GetReturnValue().Set(Nan::New(result));
 #ifdef ENABLE_ASYNC
   }
@@ -223,9 +231,9 @@ NAN_METHOD(Write) {
 ///////////////////////////////////////
 
 
-void EIO_Write(uv_work_t* req) {
-  QueuedWrite* queuedWrite = static_cast<QueuedWrite*>(req->data);
-  WriteBaton* data = queuedWrite->baton;
+void EIO_Write(uv_work_t *req) {
+  QueuedWrite *queuedWrite = static_cast<QueuedWrite *>(req->data);
+  WriteBaton *data = queuedWrite->baton;
 
   data->result = 0;
   errno = 0;
@@ -238,7 +246,7 @@ void EIO_Write(uv_work_t* req) {
 
       // The write call might be interrupted, if it is we just try again immediately.
       if (errno != EINTR) {
-        snprintf(data->errorString, sizeof(data->errorString), "Error %s calling write(...)", strerror(errno) );
+        snprintf(data->errorString, sizeof(data->errorString), "Error %s calling write(...)", strerror(errno));
         return;
       }
 
