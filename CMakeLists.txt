@@ -14,7 +14,7 @@ else ()
   include_directories(/Users/taoyuan/.cmake-js/node-x64/v0.10.40/src)
   include_directories(/Users/taoyuan/.cmake-js/node-x64/v0.10.40/deps/v8/include)
   include_directories(/Users/taoyuan/.cmake-js/node-x64/v0.10.40/deps/uv/include)
-  include_directories(/usr/local/include/node)
+#  include_directories(/usr/local/include/node)
   include_directories(node_modules/nan)
 endif ()
 

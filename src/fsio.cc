@@ -101,7 +101,7 @@ NAN_METHOD(Read) {
     info.GetReturnValue().SetUndefined();
   }
 
-  char *buf = nullptr;
+  char *buf = NULL;
 
   // file descriptor
   int fd = info[0]->ToInt32()->Int32Value();
@@ -143,7 +143,7 @@ NAN_METHOD(Write) {
     return Nan::ThrowTypeError("Second argument needs to be a buffer");
   }
 
-  char *buf = nullptr;
+  char *buf = NULL;
 
   // file descriptor
   int fd = info[0]->ToInt32()->Int32Value();
