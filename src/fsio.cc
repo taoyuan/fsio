@@ -208,7 +208,7 @@ NAN_METHOD(Write) {
     info.GetReturnValue().SetUndefined();
   } else { // sync
 #endif
-    uint32_t result = (uint32_t) write(fd, buf, len);
+    int result = (int) write(fd, buf, len);
 
     if (result < 0) {
       using namespace std;
