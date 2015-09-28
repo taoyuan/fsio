@@ -4,7 +4,7 @@
   "description": "A native node.js io library using file system.",
   "main": "fsio.js",
   "scripts": {
-    "install": "cmake-js rebuild",
+    "install": "cmake-js rebuild -o",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
