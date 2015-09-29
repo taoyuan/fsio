@@ -222,7 +222,7 @@ NAN_METHOD(Socket::Write) {
 
   if (has_callback) {
     DEBUG_LOG("Write in async");
-    write(that->_fd, buffer, offset, length, callback);
+    write_async(that->_fd, buffer, offset, length, callback);
     info.GetReturnValue().SetUndefined();
   } else {
     DEBUG_LOG("Write in sync");

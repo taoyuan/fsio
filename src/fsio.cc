@@ -104,7 +104,7 @@ void detach(int fd) {
 }
 
 
-void write(int fd, Local<Object> buffer, size_t offset, size_t len, Local<Function> callback) {
+void write_async(int fd, Local<Object> buffer, size_t offset, size_t len, Local<Function> callback) {
   Nan::HandleScope scope;
 
   char *bufferData = node::Buffer::Data(buffer);
