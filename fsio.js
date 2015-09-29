@@ -1,41 +1,17 @@
 'use strict';
 
+var events = require('events');
 var binding = require('./build/Release/fsio');
-
-var noop = function () {
-
-};
 
 var fsio = module.exports = {};
 
-fsio.Poller = binding.FsioPoller;
+fsio.Socket = binding.Socket;
+// NOT USE util.inherits
+inherits(fsio.Socket, events.EventEmitter);
 
-fsio.readSync = function (fd, buffer, offset, length) {
-  offset = offset || 0;
-  length = length || buffer.length;
-  return binding.read(fd, buffer, offset, length);
-};
-
-fsio.write = function (fd, buffer, offset, length, cb) {
-  if (typeof offset === 'function') {
-    cb = offset;
-    offset = null;
-  } else if (typeof length === 'function') {
-    cb = length;
-    length = null;
+// extend prototype
+function inherits(target, source) {
+  for (var k in source.prototype) {
+    target.prototype[k] = source.prototype[k];
   }
-  offset = offset || 0;
-  length = length || buffer.length;
-  cb = cb || noop;
-
-  return binding.write(fd, buffer, offset, length, cb);
-};
-
-
-fsio.writeSync = function (fd, buffer, offset, length) {
-  offset = offset || 0;
-  length = length || buffer.length;
-  return binding.write(fd, buffer, offset, length);
-};
-
-
+}
