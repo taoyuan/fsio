@@ -40,7 +40,7 @@ inline static void setConst(Handle<Object> obj, const char* const name, Handle<V
 #define ENTER_METHOD(CLASS, MIN_ARGS) \
   Nan::HandleScope scope;         \
 	CHECK_N_ARGS(MIN_ARGS);           \
-	auto that = node::ObjectWrap::Unwrap<CLASS>(info.This()); \
+	CLASS *that = node::ObjectWrap::Unwrap<CLASS>(info.This()); \
 	if (that == NULL) { THROW_BAD_ARGS(#CLASS " method called on invalid object") }
 
 #define UNWRAP_ARG(CLASS, NAME, ARGNO)     \
