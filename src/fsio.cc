@@ -4,6 +4,7 @@
 
 #include <nan.h>
 #include <errno.h>
+#include <unistd.h>
 #include "fsio.h"
 
 struct _WriteQueue {
@@ -150,7 +151,7 @@ void EIO_Write(uv_work_t *req) {
 
   // We carefully *DON'T* break out of this loop.
   do {
-    if ((data->result = write(data->fd, data->bufferData + data->offset, data->bufferLength - data->offset)) == -1) {
+    if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->bufferLength - data->offset)) == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         return;
 
