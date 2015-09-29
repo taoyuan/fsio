@@ -1,17 +1,34 @@
 'use strict';
 
+var util = require('util');
 var events = require('events');
 var binding = require('./build/Release/fsio');
 
-var fsio = module.exports = {};
+var nop = function () {};
 
-fsio.Socket = binding.Socket;
-// NOT USE util.inherits
-inherits(fsio.Socket, events.EventEmitter);
-
-// extend prototype
-function inherits(target, source) {
-  for (var k in source.prototype) {
-    target.prototype[k] = source.prototype[k];
+function Socket(fd, cb) {
+  if (!(this instanceof Socket)) {
+    return new Socket(fd, cb);
   }
+  cb = cb || nop;
+  this._socket = new binding.Socket(fd, cb);
 }
+
+util.inherits(Socket, events.EventEmitter);
+
+Socket.prototype.start = function () {
+  this._socket.start();
+};
+
+Socket.prototype.stop = function () {
+  this._socket.stop();
+};
+
+Socket.prototype.writeSync = function (buffer, offset, length) {
+  offset = offset || 0;
+  length = length || buffer.length;
+  return this._socket.write(buffer, offset, length);
+};
+
+
+exports.Socket = Socket;

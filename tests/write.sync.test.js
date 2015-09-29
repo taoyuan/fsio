@@ -1,9 +1,11 @@
 var fs = require('fs');
 var fsio = require('../');
 
-var fd = fs.openSync('in', 'r+');
+var fd = fs.openSync('/dev/stdout', 'w');
 var buf = new Buffer('hello12345');
 
-console.log(fsio.writeSync(fd, buf));
+var socket = fsio.Socket(fd);
+
+socket.writeSync(buf);
 
 fs.closeSync(fd);

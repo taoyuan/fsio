@@ -3,7 +3,6 @@
 //
 
 #include <nan.h>
-#include "Socket.h"
 #include "fsio.h"
 
 extern "C" {

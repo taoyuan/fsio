@@ -2,12 +2,14 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <node.h>
 #include <node_buffer.h>
 #include <nan.h>
-#include "Socket.h"
+#include "fsio.h"
+#include "helpers.h"
 
 using namespace v8;
+using namespace node;
 
 Nan::Persistent<FunctionTemplate> Socket::constructor_template;
 
@@ -29,20 +31,20 @@ void Socket::Init(Handle<Object> target) {
   target->Set(Nan::New("Socket").ToLocalChecked(), ctor->GetFunction());
 }
 
-Socket::Socket(int fd) : _fd(fd),
+Socket::Socket(int fd): _fd(fd),
   node::ObjectWrap() {
 
-  uv_poll_init(uv_default_loop(), &this->_pollHandle, this->_fd);
-
-  this->_pollHandle.data = this;
+  uv_poll_init(uv_default_loop(), &_poll_handle, _fd);
+  _poll_handle.data = this;
 }
 
 Socket::~Socket() {
-  uv_close((uv_handle_t*)&this->_pollHandle, (uv_close_cb)Socket::PollCloseCallback);
+  delete _callback;
+  uv_close((uv_handle_t *) &_poll_handle, (uv_close_cb) Socket::PollCloseCallback);
 }
 
 void Socket::start() {
-  uv_poll_start(&this->_pollHandle, UV_READABLE, Socket::PollCallback);
+  uv_poll_start(&this->_poll_handle, UV_READABLE, Socket::PollCallback);
 }
 
 void Socket::poll() {
@@ -53,27 +55,32 @@ void Socket::poll() {
 
   length = (int) read(this->_fd, data, sizeof(data));
 
-  if (length > 0) {
-    Local<Value> argv[2] = {
-      Nan::New("data").ToLocalChecked(),
+  if (!_callback->IsEmpty() && length > 0) {
+    Local<Value> argv[1] = {
       Nan::CopyBuffer(data, (uint32_t) length).ToLocalChecked()
     };
 
-    Nan::MakeCallback(Nan::New<Object>(this->This), Nan::New("emit").ToLocalChecked(), 2, argv);
+    Nan::TryCatch tc;
+    _callback->Call(1, argv);
+    if (tc.HasCaught()) {
+      Nan::FatalException(tc);
+    }
   }
 }
 
 void Socket::stop() {
-  uv_poll_stop(&this->_pollHandle);
+  uv_poll_stop(&this->_poll_handle);
 }
 
-void Socket::write_(char* data, int length) {
-  if (write(this->_fd, data, length) < 0) {
-    this->emitErrnoError();
+int Socket::_write(char *data, size_t length) {
+  int result = (int) write(this->_fd, data, length);
+  if (result < 0) {
+    this->throwErrnoError();
   }
+  return result;
 }
 
-void Socket::emitErrnoError() {
+void Socket::throwErrnoError() {
   Nan::HandleScope scope;
 
   Local<Object> globalObj = Nan::GetCurrentContext()->Global();
@@ -85,32 +92,35 @@ void Socket::emitErrnoError() {
 
   Local<Value> error = errorConstructor->NewInstance(1, constructorArgs);
 
-  Local<Value> argv[2] = {
-    Nan::New("error").ToLocalChecked(),
-    error
-  };
+  Nan::ThrowError(error);
 
-  Nan::MakeCallback(Nan::New<Object>(this->This), Nan::New("emit").ToLocalChecked(), 2, argv);
+//  Local<Value> argv[2] = {
+//    Nan::New("error").ToLocalChecked(),
+//    error
+//  };
+//
+//  Nan::MakeCallback(Nan::New<Object>(this->This), Nan::New("emit").ToLocalChecked(), 2, argv);
 }
 
 NAN_METHOD(Socket::New) {
-  Nan::HandleScope scope;
+  ENTER_CONSTRUCTOR(1);
 
-  if (!info[0]->IsInt32() && !info[0]->IsUint32()) {
-    return Nan::ThrowTypeError("fd is required");
-  }
-  int fd = info[0]->Int32Value();
+  int fd;
+  INT_ARG(fd, 0);
+  CALLBACK_ARG(1);
 
-  Socket* p = new Socket(fd);
+  Socket *p = new Socket(fd);
+  p->_callback = new Nan::Callback(callback);
+
   p->Wrap(info.This());
   p->This.Reset(info.This());
   info.GetReturnValue().Set(info.This());
 }
 
 NAN_METHOD(Socket::Start) {
-  Nan::HandleScope scope;
+  ENTER_METHOD(Socket, 0)
 
-  Socket* p = node::ObjectWrap::Unwrap<Socket>(info.This());
+  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
   p->start();
 
@@ -118,9 +128,9 @@ NAN_METHOD(Socket::Start) {
 }
 
 NAN_METHOD(Socket::Stop) {
-  Nan::HandleScope scope;
+  ENTER_METHOD(Socket, 0)
 
-  Socket* p = node::ObjectWrap::Unwrap<Socket>(info.This());
+  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
   p->stop();
 
@@ -128,27 +138,49 @@ NAN_METHOD(Socket::Stop) {
 }
 
 NAN_METHOD(Socket::Write) {
-  Nan::HandleScope scope;
-  Socket* p = node::ObjectWrap::Unwrap<Socket>(info.This());
+  ENTER_METHOD(Socket, 3)
 
-  if (info.Length() > 0) {
-    Local<Value> arg0 = info[0];
-    if (arg0->IsObject()) {
+  char *buf = NULL;
 
-      p->write_(node::Buffer::Data(arg0), node::Buffer::Length(arg0));
-    }
+  Local<Object> buffer;
+  size_t offset, length;
+
+  BUFFER_ARG(buffer, 0)
+  INT_ARG(offset, 1)
+  INT_ARG(length, 2)
+
+  // buffer
+  char *bufferData = node::Buffer::Data(buffer);
+  size_t bufferLength = node::Buffer::Length(buffer);
+
+  // offset
+  if (offset >= bufferLength) {
+    return Nan::ThrowError("Offset is out of bounds");
   }
 
-  info.GetReturnValue().SetUndefined();
+  // length
+  if (!Buffer::IsWithinBounds(offset, length, bufferLength)) {
+    return Nan::ThrowRangeError("Length extends beyond buffer");
+  }
+
+  buf = bufferData + offset;
+
+  DEBUG_LOG("Writing %d %d %p", offset, length, buf);
+
+  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
+
+  int result = p->_write(buf, length);
+
+  info.GetReturnValue().Set(Nan::New(result));
 }
 
 
-void Socket::PollCloseCallback(uv_poll_t* handle) {
+void Socket::PollCloseCallback(uv_poll_t *handle) {
   delete handle;
 }
 
-void Socket::PollCallback(uv_poll_t* handle, int status, int events) {
-  Socket *p = (Socket*)handle->data;
+void Socket::PollCallback(uv_poll_t *handle, int status, int events) {
+  Socket *p = (Socket *) handle->data;
 
   p->poll();
 }
