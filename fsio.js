@@ -24,6 +24,12 @@ Socket.prototype.stop = function () {
   this._socket.stop();
 };
 
+Socket.prototype.readSync = function (buffer, offset, length) {
+  offset = offset || 0;
+  length = length || buffer.length;
+  return this._socket.read(buffer, offset, length);
+};
+
 Socket.prototype.writeSync = function (buffer, offset, length) {
   offset = offset || 0;
   length = length || buffer.length;

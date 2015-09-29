@@ -26,6 +26,7 @@ void Socket::Init(Handle<Object> target) {
   // Prototype
   Nan::SetPrototypeMethod(ctor, "start", Start);
   Nan::SetPrototypeMethod(ctor, "stop", Stop);
+  Nan::SetPrototypeMethod(ctor, "read", Read);
   Nan::SetPrototypeMethod(ctor, "write", Write);
 
   target->Set(Nan::New("Socket").ToLocalChecked(), ctor->GetFunction());
@@ -70,6 +71,14 @@ void Socket::poll() {
 
 void Socket::stop() {
   uv_poll_stop(&this->_poll_handle);
+}
+
+int Socket::_read(char *data, size_t length) {
+  int result = (int) read(this->_fd, data, length);
+  if (result < 0) {
+    this->throwErrnoError();
+  }
+  return result;
 }
 
 int Socket::_write(char *data, size_t length) {
@@ -135,6 +144,44 @@ NAN_METHOD(Socket::Stop) {
   p->stop();
 
   info.GetReturnValue().SetUndefined();
+}
+
+
+NAN_METHOD(Socket::Read) {
+  ENTER_METHOD(Socket, 3)
+
+  char *buf = NULL;
+
+  Local<Object> buffer;
+  size_t offset, length;
+
+  BUFFER_ARG(buffer, 0)
+  INT_ARG(offset, 1)
+  INT_ARG(length, 2)
+
+  // buffer
+  char *bufferData = node::Buffer::Data(buffer);
+  size_t bufferLength = node::Buffer::Length(buffer);
+
+  // offset
+  if (offset >= bufferLength) {
+    return Nan::ThrowError("Offset is out of bounds");
+  }
+
+  // length
+  if (!Buffer::IsWithinBounds(offset, length, bufferLength)) {
+    return Nan::ThrowRangeError("Length extends beyond buffer");
+  }
+
+  buf = bufferData + offset;
+
+  DEBUG_LOG("Writing %d %d %p", offset, length, buf);
+
+  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
+
+  int result = p->_read(buf, length);
+
+  info.GetReturnValue().Set(Nan::New(result));
 }
 
 NAN_METHOD(Socket::Write) {

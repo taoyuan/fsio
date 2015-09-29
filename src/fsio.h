@@ -15,6 +15,7 @@ public:
     static NAN_METHOD(New);
     static NAN_METHOD(Start);
     static NAN_METHOD(Stop);
+    static NAN_METHOD(Read);
     static NAN_METHOD(Write);
 
 private:
@@ -24,6 +25,7 @@ private:
     void start();
     void stop();
 
+    int _read(char *data, size_t length);
     int _write(char *data, size_t length);
 
     void poll();
