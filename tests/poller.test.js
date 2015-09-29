@@ -6,7 +6,7 @@ var fsio = require('../');
 var fd = fs.openSync('/dev/stdin', 'r');
 var buf = new Buffer(10);
 
-var poller = new fsio.FsioPoller(fd, read);
+var poller = new fsio.Poller(fd, read);
 
 function read(err) {
   if (err) throw err;
@@ -23,6 +23,5 @@ function read(err) {
     read();
   }
 }
-
 
 poller.start();

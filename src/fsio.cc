@@ -127,7 +127,7 @@ NAN_METHOD(Read) {
 
   buf = bufferData + offset;
 
-  uint32_t result = (uint32_t) read(fd, buf, len);
+  int result = (int) read(fd, buf, len);
   info.GetReturnValue().Set(Nan::New(result));
 }
 
@@ -213,7 +213,7 @@ NAN_METHOD(Write) {
     if (result < 0) {
       using namespace std;
       stringstream s;
-      s << "Fail on write  " << errno << "  " << strerror(errno) << ".";
+      s << "Fail on write " << errno << " " << strerror(errno) << ".";
       return Nan::ThrowError(s.str().c_str());
     }
 
