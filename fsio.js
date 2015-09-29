@@ -30,6 +30,20 @@ Socket.prototype.readSync = function (buffer, offset, length) {
   return this._socket.read(buffer, offset, length);
 };
 
+Socket.prototype.write = function (buffer, offset, length, cb) {
+  if (typeof offset === 'function') {
+    cb = offset;
+    offset = null;
+  } else if (typeof length === 'function') {
+    cb = length;
+    length = null;
+  }
+  offset = offset || 0;
+  length = length || buffer.length;
+  cb = cb || nop;
+  return this._socket.write(buffer, offset, length, cb);
+};
+
 Socket.prototype.writeSync = function (buffer, offset, length) {
   offset = offset || 0;
   length = length || buffer.length;

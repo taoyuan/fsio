@@ -37,10 +37,13 @@ Socket::Socket(int fd): _fd(fd),
 
   uv_poll_init(uv_default_loop(), &_poll_handle, _fd);
   _poll_handle.data = this;
+
+  attach(_fd);
 }
 
 Socket::~Socket() {
   delete _callback;
+  detach(_fd);
   uv_close((uv_handle_t *) &_poll_handle, (uv_close_cb) Socket::PollCloseCallback);
 }
 
@@ -195,6 +198,7 @@ NAN_METHOD(Socket::Write) {
   BUFFER_ARG(buffer, 0)
   INT_ARG(offset, 1)
   INT_ARG(length, 2)
+  CALLBACK_ARG(3);
 
   // buffer
   char *bufferData = node::Buffer::Data(buffer);
@@ -216,9 +220,15 @@ NAN_METHOD(Socket::Write) {
 
   Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
-  int result = p->_write(buf, length);
-
-  info.GetReturnValue().Set(Nan::New(result));
+  if (has_callback) {
+    DEBUG_LOG("Write in async");
+    write(that->_fd, buffer, offset, length, callback);
+    info.GetReturnValue().SetUndefined();
+  } else {
+    DEBUG_LOG("Write in sync");
+    int result = p->_write(buf, length);
+    info.GetReturnValue().Set(Nan::New(result));
+  }
 }
 
 

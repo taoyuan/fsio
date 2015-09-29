@@ -82,11 +82,13 @@ inline static void setConst(Handle<Object> obj, const char* const name, Handle<V
 
 #define CALLBACK_ARG(CALLBACK_ARG_IDX) \
 	Local<Function> callback; \
+  bool has_callback = false; \
 	if (info.Length() > (CALLBACK_ARG_IDX)) { \
 		if (!info[CALLBACK_ARG_IDX]->IsFunction()) { \
 			return Nan::ThrowTypeError("Argument " #CALLBACK_ARG_IDX " must be a function"); \
 		} \
 		callback = Local<Function>::Cast(info[CALLBACK_ARG_IDX]); \
-	} \
+    has_callback = true; \
+	}
 
 #endif //FSIO_HELPERS_H
