@@ -70,6 +70,7 @@ public:
     char* bufferData;
     size_t bufferLength;
     size_t offset;
+    size_t length;
     Nan::Persistent<v8::Object> buffer;
     Nan::Callback* callback;
     int result;

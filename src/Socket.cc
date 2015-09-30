@@ -150,17 +150,17 @@ NAN_METHOD(Socket::Read) {
   }
 
   // length
-  if (!Buffer::IsWithinBounds(offset, length, bufferLength)) {
+  if (!Buffer::IsWithinBounds(0, length, bufferLength - offset)) {
     return Nan::ThrowRangeError("Length extends beyond buffer");
   }
 
   buf = bufferData + offset;
 
-  DEBUG_LOG("Reading %d %d %p", offset, length, buf);
+  DEBUG_LOG("Reading {offset:%d, length:%d, buffer:%p}", offset, length, buf);
 
   Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
-  int result = p->_read(length ? buf : NULL, length);
+  int result = p->_read(length ? buf : 0, length);
 
   info.GetReturnValue().Set(Nan::New(result));
 }
@@ -188,13 +188,13 @@ NAN_METHOD(Socket::Write) {
   }
 
   // length
-  if (!Buffer::IsWithinBounds(offset, length, bufferLength)) {
+  if (!Buffer::IsWithinBounds(0, length, bufferLength - offset)) {
     return Nan::ThrowRangeError("Length extends beyond buffer");
   }
 
   buf = bufferData + offset;
 
-  DEBUG_LOG("Writing %d %d %p", offset, length, buf);
+  DEBUG_LOG("Writing {offset:%d, length:%d, buffer:%p}", offset, length, buf);
 
   Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
@@ -204,7 +204,7 @@ NAN_METHOD(Socket::Write) {
     info.GetReturnValue().SetUndefined();
   } else {
     DEBUG_LOG("Write in sync");
-    int result = p->_write(length ? buf : NULL, length);
+    int result = p->_write(length ? buf : 0, length);
     info.GetReturnValue().Set(Nan::New(result));
   }
 }

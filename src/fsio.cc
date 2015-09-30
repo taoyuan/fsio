@@ -120,7 +120,8 @@ void write_async(int fd, Local<Object> buffer, size_t offset, size_t len, Local<
   baton->buffer.Reset(buffer);
   baton->bufferData = bufferData;
   baton->bufferLength = bufferLength;
-  baton->offset = 0;
+  baton->offset = offset;
+  baton->length = len;
   baton->callback = new Nan::Callback(callback);
 
   QueuedWrite *queuedWrite = new QueuedWrite();
@@ -152,15 +153,15 @@ void EIO_Write(uv_work_t *req) {
   data->result = 0;
   errno = 0;
 
-  if (!data->bufferLength) {
-    data->result = (int) write(data->fd, NULL, 0);
+  if (!data->length) {
+    DEBUG_LOG("write(%d, 0, 0)", data->fd);
+    data->result = (int) write(data->fd, 0, 0);
     return;
   }
 
   // We carefully *DON'T* break out of this loop.
   do {
-    if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->bufferLength - data->offset)) ==
-        -1) {
+    if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->length)) == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         return;
 
@@ -175,12 +176,12 @@ void EIO_Write(uv_work_t *req) {
     }
       // there wasn't an error, do the math on what we actually wrote...
     else {
-      data->offset += data->result;
+      data->length -= data->result;
     }
 
     // if we get there, we really don't want to loop
     // break;
-  } while (data->bufferLength > data->offset);
+  } while (data->length > 0);
 }
 
 void EIO_AfterWrite(uv_work_t *req) {
