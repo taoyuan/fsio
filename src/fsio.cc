@@ -245,7 +245,7 @@ NAN_METHOD(Open) {
 
   int rc = open(path, oflag);
   if (rc < 0) {
-    throwErrnoError();
+    return throwErrnoError();
   }
   info.GetReturnValue().Set(Nan::New(rc));
 }
