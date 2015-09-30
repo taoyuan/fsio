@@ -37,8 +37,6 @@ private:
 
     void poll();
 
-    void throwErrnoError();
-
     static void PollCloseCallback(uv_poll_t* handle);
     static void PollCallback(uv_poll_t* handle, int status, int events);
 
