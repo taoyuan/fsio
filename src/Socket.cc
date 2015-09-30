@@ -167,7 +167,7 @@ NAN_METHOD(Socket::Read) {
   size_t bufferLength = node::Buffer::Length(buffer);
 
   // offset
-  if (offset >= bufferLength) {
+  if (offset > bufferLength) {
     return Nan::ThrowError("Offset is out of bounds");
   }
 
@@ -182,7 +182,7 @@ NAN_METHOD(Socket::Read) {
 
   Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
-  int result = p->_read(buf, length);
+  int result = p->_read(length ? buf : NULL, length);
 
   info.GetReturnValue().Set(Nan::New(result));
 }
@@ -205,7 +205,7 @@ NAN_METHOD(Socket::Write) {
   size_t bufferLength = node::Buffer::Length(buffer);
 
   // offset
-  if (offset >= bufferLength) {
+  if (offset > bufferLength) {
     return Nan::ThrowError("Offset is out of bounds");
   }
 
@@ -226,7 +226,7 @@ NAN_METHOD(Socket::Write) {
     info.GetReturnValue().SetUndefined();
   } else {
     DEBUG_LOG("Write in sync");
-    int result = p->_write(buf, length);
+    int result = p->_write(length ? buf : NULL, length);
     info.GetReturnValue().Set(Nan::New(result));
   }
 }

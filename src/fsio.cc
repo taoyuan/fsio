@@ -149,6 +149,11 @@ void EIO_Write(uv_work_t *req) {
   data->result = 0;
   errno = 0;
 
+  if (!data->bufferLength) {
+    data->result = (int) write(data->fd, NULL, 0);
+    return;
+  }
+
   // We carefully *DON'T* break out of this loop.
   do {
     if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->bufferLength - data->offset)) == -1) {
