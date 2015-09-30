@@ -87,31 +87,9 @@ int Socket::_read(char *data, size_t length) {
 int Socket::_write(char *data, size_t length) {
   int result = (int) write(this->_fd, data, length);
   if (result < 0) {
-    this->throwErrnoError();
+    throwErrnoError();
   }
   return result;
-}
-
-void Socket::throwErrnoError() {
-  Nan::HandleScope scope;
-
-  Local<Object> globalObj = Nan::GetCurrentContext()->Global();
-  Local<Function> errorConstructor = Local<Function>::Cast(globalObj->Get(Nan::New("Error").ToLocalChecked()));
-
-  Local<Value> constructorArgs[1] = {
-    Nan::New(strerror(errno)).ToLocalChecked()
-  };
-
-  Local<Value> error = errorConstructor->NewInstance(1, constructorArgs);
-
-  Nan::ThrowError(error);
-
-//  Local<Value> argv[2] = {
-//    Nan::New("error").ToLocalChecked(),
-//    error
-//  };
-//
-//  Nan::MakeCallback(Nan::New<Object>(this->This), Nan::New("emit").ToLocalChecked(), 2, argv);
 }
 
 NAN_METHOD(Socket::New) {

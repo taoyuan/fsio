@@ -159,7 +159,8 @@ void EIO_Write(uv_work_t *req) {
 
   // We carefully *DON'T* break out of this loop.
   do {
-    if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->bufferLength - data->offset)) == -1) {
+    if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->bufferLength - data->offset)) ==
+        -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         return;
 
@@ -185,11 +186,11 @@ void EIO_Write(uv_work_t *req) {
 void EIO_AfterWrite(uv_work_t *req) {
   Nan::HandleScope scope;
 
-  QueuedWrite* queuedWrite = static_cast<QueuedWrite*>(req->data);
-  WriteBaton* data = static_cast<WriteBaton*>(queuedWrite->baton);
+  QueuedWrite *queuedWrite = static_cast<QueuedWrite *>(req->data);
+  WriteBaton *data = static_cast<WriteBaton *>(queuedWrite->baton);
 
   Local<Value> argv[2];
-  if(data->errorString[0]) {
+  if (data->errorString[0]) {
     argv[0] = Nan::Error(data->errorString);
     argv[1] = Nan::Undefined();
   } else {
@@ -203,13 +204,13 @@ void EIO_AfterWrite(uv_work_t *req) {
     // Don't re-push the write in the event loop if there was an error; because same error could occur again!
     // TODO: Add a uv_poll here for unix...
     //fprintf(stderr, "Write again...\n");
-    uv_queue_work(uv_default_loop(), req, EIO_Write, (uv_after_work_cb)EIO_AfterWrite);
+    uv_queue_work(uv_default_loop(), req, EIO_Write, (uv_after_work_cb) EIO_AfterWrite);
     return;
   }
 
   int fd = data->fd;
   _WriteQueue *q = qForFD(fd);
-  if(!q) {
+  if (!q) {
     return Nan::ThrowTypeError("There's no write queue for that file descriptor (after write)!");
   }
 
@@ -222,8 +223,8 @@ void EIO_AfterWrite(uv_work_t *req) {
   // If there are any left, start a new thread to write the next one.
   if (!write_queue.empty()) {
     // Always pull the next work item from the head of the queue
-    QueuedWrite* nextQueuedWrite = write_queue.next;
-    uv_queue_work(uv_default_loop(), &nextQueuedWrite->req, EIO_Write, (uv_after_work_cb)EIO_AfterWrite);
+    QueuedWrite *nextQueuedWrite = write_queue.next;
+    uv_queue_work(uv_default_loop(), &nextQueuedWrite->req, EIO_Write, (uv_after_work_cb) EIO_AfterWrite);
   }
   q->unlock();
 
@@ -236,13 +237,16 @@ void EIO_AfterWrite(uv_work_t *req) {
 NAN_METHOD(Open) {
   Nan::HandleScope scope;
 
-  char * path = NULL;
+  char *path = NULL;
   int oflag;
 
   STRING_ARG(path, 0);
   INT_ARG(oflag, 1);
 
   int rc = open(path, oflag);
+  if (rc < 0) {
+    throwErrnoError();
+  }
   info.GetReturnValue().Set(Nan::New(rc));
 }
 
@@ -257,7 +261,7 @@ NAN_METHOD(Close) {
   info.GetReturnValue().Set(Nan::New(rc));
 }
 
-void initConstants(Handle<Object> target){
+void initConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
   NODE_DEFINE_CONSTANT(target, O_RDWR);

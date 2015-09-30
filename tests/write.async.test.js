@@ -1,7 +1,7 @@
 var fs = require('fs');
 var fsio = require('../');
 
-var fd = fs.openSync('/dev/stdout', 'w');
+var fd = fsio.openSync('/dev/stdout', fsio.O_WRONLY);
 var buf = new Buffer('hello12345');
 
 var socket = fsio.Socket(fd);

@@ -25,6 +25,28 @@ inline static void setConst(Handle<Object> obj, const char* const name, Handle<V
   obj->ForceSet(Nan::New<String>(name).ToLocalChecked(), value, CONST_PROP);
 }
 
+inline static void throwErrnoError() {
+  Nan::HandleScope scope;
+
+  Local<Object> globalObj = Nan::GetCurrentContext()->Global();
+  Local<Function> errorConstructor = Local<Function>::Cast(globalObj->Get(Nan::New("Error").ToLocalChecked()));
+
+  Local<Value> constructorArgs[1] = {
+    Nan::New(strerror(errno)).ToLocalChecked()
+  };
+
+  Local<Value> error = errorConstructor->NewInstance(1, constructorArgs);
+
+  Nan::ThrowError(error);
+
+//  Local<Value> argv[2] = {
+//    Nan::New("error").ToLocalChecked(),
+//    error
+//  };
+//
+//  Nan::MakeCallback(Nan::New<Object>(this->This), Nan::New("emit").ToLocalChecked(), 2, argv);
+}
+
 #define ENTER_CONSTRUCTOR(MIN_ARGS) \
   Nan::HandleScope scope;         \
 	CHECK_N_ARGS(MIN_ARGS);
