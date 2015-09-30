@@ -79,7 +79,7 @@ void Socket::stop() {
 int Socket::_read(char *data, size_t length) {
   int result = (int) read(this->_fd, data, length);
   if (result < 0) {
-    this->throwErrnoError();
+    throwErrnoError();
   }
   return result;
 }
