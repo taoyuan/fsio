@@ -52,3 +52,25 @@ Socket.prototype.writeSync = function (buffer, offset, length) {
 
 
 exports.Socket = Socket;
+
+exports.openSync = function (path, flag) {
+  return binding.open(path, flag);
+};
+
+exports.closeSync = function (path) {
+  return binding.close(path);
+};
+
+exports.O_RDONLY = binding.O_RDONLY;
+exports.O_WRONLY = binding.O_WRONLY;
+exports.O_RDWR = binding.O_RDWR;
+exports.O_ACCMODE = binding.O_ACCMODE;
+
+exports.O_CLOEXEC = binding.O_CLOEXEC;
+
+var keys = Object.keys(binding);
+keys.forEach(function (k) {
+  if (typeof binding[k] !== 'function' && !(k in exports)) {
+    exports[k] = binding[k];
+  }
+});

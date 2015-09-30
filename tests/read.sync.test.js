@@ -1,7 +1,7 @@
 var fs = require('fs');
 var fsio = require('../');
 
-var fd = fs.openSync('fixture/data', 'r');
+var fd = fsio.openSync('fixture/data', fsio.O_RDONLY);
 var buf = new Buffer(20);
 
 var socket = fsio.Socket(fd);

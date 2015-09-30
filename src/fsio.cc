@@ -5,6 +5,9 @@
 #include <nan.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+#include "helpers.h"
 #include "fsio.h"
 
 struct _WriteQueue {
@@ -230,11 +233,50 @@ void EIO_AfterWrite(uv_work_t *req) {
   delete queuedWrite;
 }
 
+NAN_METHOD(Open) {
+  Nan::HandleScope scope;
+
+  char * path = NULL;
+  int oflag;
+
+  STRING_ARG(path, 0);
+  INT_ARG(oflag, 1);
+
+  int rc = open(path, oflag);
+  info.GetReturnValue().Set(Nan::New(rc));
+}
+
+NAN_METHOD(Close) {
+  Nan::HandleScope scope;
+
+  int fd;
+
+  INT_ARG(fd, 0);
+
+  int rc = close(fd);
+  info.GetReturnValue().Set(Nan::New(rc));
+}
+
+void initConstants(Handle<Object> target){
+  NODE_DEFINE_CONSTANT(target, O_RDONLY);
+  NODE_DEFINE_CONSTANT(target, O_WRONLY);
+  NODE_DEFINE_CONSTANT(target, O_RDWR);
+  NODE_DEFINE_CONSTANT(target, O_ACCMODE);
+
+  NODE_DEFINE_CONSTANT(target, O_CLOEXEC);
+}
+
 
 extern "C" {
 void init(v8::Handle<v8::Object> target) {
   Nan::HandleScope scop;
+
+  Nan::SetMethod(target, "open", Open);
+  Nan::SetMethod(target, "close", Close);
+
   Socket::Init(target);
+
+  initConstants(target);
 }
 }
 
