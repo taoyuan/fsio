@@ -108,7 +108,7 @@ void detach(int fd) {
 }
 
 
-void write_async(int fd, Local<Object> buffer, size_t offset, size_t len, Local<Function> callback) {
+void write_async(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
   Nan::HandleScope scope;
 
   char *bufferData = node::Buffer::Data(buffer);
@@ -121,7 +121,7 @@ void write_async(int fd, Local<Object> buffer, size_t offset, size_t len, Local<
   baton->bufferData = bufferData;
   baton->bufferLength = bufferLength;
   baton->offset = offset;
-  baton->length = len;
+  baton->length = length;
   baton->callback = new Nan::Callback(callback);
 
   QueuedWrite *queuedWrite = new QueuedWrite();
@@ -200,7 +200,7 @@ void EIO_AfterWrite(uv_work_t *req) {
   }
   data->callback->Call(2, argv);
 
-  if (data->offset < data->bufferLength && !data->errorString[0]) {
+  if (data->length && !data->errorString[0]) {
     // We're not done with this baton, so throw it right back onto the queue.
     // Don't re-push the write in the event loop if there was an error; because same error could occur again!
     // TODO: Add a uv_poll here for unix...
