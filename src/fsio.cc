@@ -243,6 +243,8 @@ NAN_METHOD(Open) {
   STRING_ARG(path, 0);
   INT_ARG(oflag, 1);
 
+  printf("open %s", path);
+
   int rc = open(path, oflag);
   if (rc < 0) {
     return throwErrnoError();
