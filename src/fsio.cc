@@ -242,7 +242,8 @@ NAN_METHOD(Open) {
   int oflag;
   INT_ARG(oflag, 1);
 
-  DEBUG_LOG("open '%s', %d", path, oflag);
+  DEBUG_LOG("%s", info[0]->ToString());
+  DEBUG_LOG("open ['%s', %d]", path, oflag);
 
   int rc = open(path, oflag);
   if (rc < 0) {
