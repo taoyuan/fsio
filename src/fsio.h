@@ -10,7 +10,7 @@
 using namespace v8;
 using namespace node;
 
-//#define DEBUG
+#define DEBUG
 
 #define ERROR_STRING_SIZE 1024
 
