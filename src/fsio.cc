@@ -237,13 +237,12 @@ void EIO_AfterWrite(uv_work_t *req) {
 NAN_METHOD(Open) {
   Nan::HandleScope scope;
 
-  char *path = NULL;
-  int oflag;
+  char *path = *String::Utf8Value(info[0]->ToString());
 
-  STRING_ARG(path, 0);
+  int oflag;
   INT_ARG(oflag, 1);
 
-  DEBUG_LOG("open '%s'", path);
+  DEBUG_LOG("open '%s', %d", path, oflag);
 
   int rc = open(path, oflag);
   if (rc < 0) {
