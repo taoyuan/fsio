@@ -156,7 +156,7 @@ NAN_METHOD(Socket::Read) {
 
   buf = bufferData + offset;
 
-  DEBUG_LOG("Writing %d %d %p", offset, length, buf);
+  DEBUG_LOG("Reading %d %d %p", offset, length, buf);
 
   Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
