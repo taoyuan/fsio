@@ -12,6 +12,7 @@ function Socket(fd, cb) {
   }
   cb = cb || nop;
   this._socket = new binding.Socket(fd, cb);
+  this.fd = fd;
 }
 
 util.inherits(Socket, events.EventEmitter);
