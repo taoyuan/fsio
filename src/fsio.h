@@ -56,6 +56,8 @@ void detach(int fd);
 NAN_METHOD(Open);
 NAN_METHOD(Close);
 
+NAN_METHOD(Poll);
+
 void write_async(int fd, Local<Object> buf, size_t offset, size_t length, Local<Function> callback);
 void EIO_Write(uv_work_t* req);
 void EIO_AfterWrite(uv_work_t* req);

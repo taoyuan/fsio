@@ -62,6 +62,7 @@ exports.closeSync = function (path) {
   return binding.close(path);
 };
 
+// Open
 exports.O_RDONLY = binding.O_RDONLY;
 exports.O_WRONLY = binding.O_WRONLY;
 exports.O_RDWR = binding.O_RDWR;
@@ -69,9 +70,31 @@ exports.O_ACCMODE = binding.O_ACCMODE;
 
 exports.O_CLOEXEC = binding.O_CLOEXEC;
 
+// POLL
+exports.POLLIN = binding.POLLIN;
+exports.POLLPRI = binding.POLLPRI;
+exports.POLLOUT = binding.POLLOUT;
+exports.POLLRDNORM = binding.POLLRDNORM;
+exports.POLLWRNORM = binding.POLLWRNORM;
+exports.POLLRDBAND = binding.POLLRDBAND;
+exports.POLLWRBAND = binding.POLLWRBAND;
+
+exports.POLLEXTEND = binding.POLLEXTEND;
+exports.POLLATTRIB = binding.POLLATTRIB;
+exports.POLLNLINK = binding.POLLNLINK;
+exports.POLLWRITE = binding.POLLWRITE;
+
+exports.POLLERR = binding.POLLERR;
+exports.POLLHUP = binding.POLLHUP;
+exports.POLLNVAL = binding.POLLNVAL;
+
 var keys = Object.keys(binding);
 keys.forEach(function (k) {
   if (typeof binding[k] !== 'function' && !(k in exports)) {
     exports[k] = binding[k];
   }
 });
+
+exports.poll = function (fd, events, timeout) {
+
+};

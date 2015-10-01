@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #include "helpers.h"
 #include "fsio.h"
@@ -263,6 +264,27 @@ NAN_METHOD(Close) {
   info.GetReturnValue().Set(Nan::New(rc));
 }
 
+NAN_METHOD(Poll) {
+  Nan::HandleScope scope;
+
+  int fd;
+  short events, timeout;
+  INT_ARG(fd, 0);
+  INT_ARG(events, 1);
+  INT_ARG(timeout, 2);
+
+  struct pollfd fds;
+  fds.fd = fd;
+  fds.events = events;
+
+  int rc = poll(&fds, 1, timeout);
+  if (rc != 0) {
+    return throwErrnoError();
+  }
+
+  info.GetReturnValue().Set(Nan::New(fds.revents));
+}
+
 void initConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
@@ -270,6 +292,24 @@ void initConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_ACCMODE);
 
   NODE_DEFINE_CONSTANT(target, O_CLOEXEC);
+
+  /* POLL Constants */
+  NODE_DEFINE_CONSTANT(target, POLLIN);
+  NODE_DEFINE_CONSTANT(target, POLLPRI);
+  NODE_DEFINE_CONSTANT(target, POLLOUT);
+  NODE_DEFINE_CONSTANT(target, POLLRDNORM);
+  NODE_DEFINE_CONSTANT(target, POLLWRNORM);
+  NODE_DEFINE_CONSTANT(target, POLLRDBAND);
+  NODE_DEFINE_CONSTANT(target, POLLWRBAND);
+
+  NODE_DEFINE_CONSTANT(target, POLLEXTEND);
+  NODE_DEFINE_CONSTANT(target, POLLATTRIB);
+  NODE_DEFINE_CONSTANT(target, POLLNLINK);
+  NODE_DEFINE_CONSTANT(target, POLLWRITE);
+
+  NODE_DEFINE_CONSTANT(target, POLLERR);
+  NODE_DEFINE_CONSTANT(target, POLLHUP);
+  NODE_DEFINE_CONSTANT(target, POLLNVAL);
 }
 
 
@@ -279,6 +319,8 @@ void init(v8::Handle<v8::Object> target) {
 
   Nan::SetMethod(target, "open", Open);
   Nan::SetMethod(target, "close", Close);
+
+  Nan::SetMethod(target, "poll", Close);
 
   Socket::Init(target);
 

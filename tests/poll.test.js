@@ -3,17 +3,15 @@ var fsio = require('../');
 
 var fd = fs.openSync('/dev/stdin', 'r+');
 
-var socket = new fsio.Socket(fd, function (data) {
-  if (data.length === 1) {
-    socket.stop();
-    fs.closeSync(fd);
-    console.log('closed');
-    return;
+var buffer = new Buffer(100);
+
+function poll() {
+  var ret = fsio.poll(fd, fsio.POLLIN, 500);
+  if (ret === fsio.POLLIN) {
+    var count = fs.readSync(fd, buffer, 0, buffer.length);
+    console.log(buffer.slice(0, count));
   }
-  console.log(data);
+  process.nextTick(poll);
+}
 
-});
-
-socket.start();
-
-console.log('started');
+poll();
