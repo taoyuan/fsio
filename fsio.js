@@ -18,11 +18,15 @@ function Socket(fd, cb) {
 util.inherits(Socket, events.EventEmitter);
 
 Socket.prototype.start = function () {
+  if (this._started) return;
   this._socket.start();
+  this._started = true;
 };
 
 Socket.prototype.stop = function () {
+  if (!this._started) return;
   this._socket.stop();
+  this._started = false;
 };
 
 Socket.prototype.readSync = function (buffer, offset, length) {
