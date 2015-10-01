@@ -62,6 +62,11 @@ exports.closeSync = function (path) {
   return binding.close(path);
 };
 
+
+exports.poll = function (fd, events, timeout) {
+  return binding.poll(fd, events, timeout);
+};
+
 // Open
 exports.O_RDONLY = binding.O_RDONLY;
 exports.O_WRONLY = binding.O_WRONLY;
@@ -94,7 +99,3 @@ keys.forEach(function (k) {
     exports[k] = binding[k];
   }
 });
-
-exports.poll = function (fd, events, timeout) {
-
-};

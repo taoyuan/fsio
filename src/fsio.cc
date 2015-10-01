@@ -276,13 +276,16 @@ NAN_METHOD(Poll) {
   struct pollfd fds;
   fds.fd = fd;
   fds.events = events;
+  fds.revents = 0;
 
   int rc = poll(&fds, 1, timeout);
-  if (rc != 0) {
+
+//  fprintf(stderr, "rc %d", rc);
+  if (rc < 0) { // 0 no data; < 0 is error
     return throwErrnoError();
   }
 
-  info.GetReturnValue().Set(Nan::New(fds.revents));
+  info.GetReturnValue().Set(Nan::New(rc ? fds.revents : 0));
 }
 
 void initConstants(Handle<Object> target) {
@@ -320,7 +323,7 @@ void init(v8::Handle<v8::Object> target) {
   Nan::SetMethod(target, "open", Open);
   Nan::SetMethod(target, "close", Close);
 
-  Nan::SetMethod(target, "poll", Close);
+  Nan::SetMethod(target, "poll", Poll);
 
   Socket::Init(target);
 

@@ -7,11 +7,13 @@ var buffer = new Buffer(100);
 
 function poll() {
   var ret = fsio.poll(fd, fsio.POLLIN, 500);
-  if (ret === fsio.POLLIN) {
+  //console.log(ret);
+  if (ret & fsio.POLLIN) {
     var count = fs.readSync(fd, buffer, 0, buffer.length);
     console.log(buffer.slice(0, count));
   }
-  process.nextTick(poll);
+  setImmediate(poll);
 }
 
 poll();
+
