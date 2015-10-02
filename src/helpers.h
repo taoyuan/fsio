@@ -12,6 +12,17 @@
 
 using namespace v8;
 
+//#define DEBUG
+
+#ifdef DEBUG
+#define DEBUG_HEADER fprintf(stderr, "fsio [%s:%s() %d]: ", __FILE__, __FUNCTION__, __LINE__);
+  #define DEBUG_FOOTER fprintf(stderr, "\n");
+  #define DEBUG_LOG(...) DEBUG_HEADER fprintf(stderr, __VA_ARGS__); DEBUG_FOOTER
+#else
+#define DEBUG_LOG(...)
+#endif
+
+
 #define V8STR(str) Nan::New<String>(str).ToLocalChecked()
 #define V8SYM(str) Nan::New<String>(str).ToLocalChecked()
 

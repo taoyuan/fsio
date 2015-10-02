@@ -71,6 +71,23 @@ exports.poll = function (fd, events, timeout) {
   return binding.poll(fd, events, timeout);
 };
 
+exports.read = function (fd, buffer, offset, length, cb) {
+  if (typeof offset === 'function') {
+    cb = offset;
+    offset = null;
+  } else if (typeof length === 'function') {
+    cb = length;
+    length = null;
+  }
+  offset = offset || 0;
+  length = length || buffer.length;
+  if (cb) {
+    return binding.read(fd, buffer, offset, length, cb);
+  } else {
+    return binding.read(fd, buffer, offset, length);
+  }
+};
+
 // Open
 exports.O_RDONLY = binding.O_RDONLY;
 exports.O_WRONLY = binding.O_WRONLY;

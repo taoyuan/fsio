@@ -10,6 +10,7 @@
 
 #include "helpers.h"
 #include "fsio.h"
+#include "socket.h"
 
 struct _WriteQueue {
     const int _fd; // the fd that is associated with this write queue
@@ -88,11 +89,11 @@ static void deleteQForFD(const int fd) {
   // It wasn't found...
 };
 
-void attach(int fd) {
+void fsio_attach(int fd) {
   newQForFD(fd);
 }
 
-void detach(int fd) {
+void fsio_detach(int fd) {
   _WriteQueue *q = qForFD(fd);
   if (q) {
     q->lock();
@@ -109,7 +110,62 @@ void detach(int fd) {
 }
 
 
-void write_async(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
+int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
+  Nan::HandleScope scope;
+
+
+  char *bufferData = node::Buffer::Data(buffer);
+  size_t bufferLength = node::Buffer::Length(buffer);
+
+  if (callback.IsEmpty()) { // sync
+    int rc = (int) read(fd, bufferData, length);
+    if (rc < 0) {
+      throwErrnoError();
+    }
+    return rc;
+  }
+
+  // async
+
+  WriteBaton *baton = new WriteBaton();
+  memset(baton, 0, sizeof(WriteBaton));
+  baton->fd = fd;
+  baton->buffer.Reset(buffer);
+  baton->bufferData = bufferData;
+  baton->bufferLength = bufferLength;
+  baton->offset = offset;
+  baton->length = length;
+  baton->callback = new Nan::Callback(callback);
+
+  uv_work_t* req = new uv_work_t();
+  req->data = baton;
+
+  uv_queue_work(uv_default_loop(), req, __fsio_eio_read, (uv_after_work_cb) __fsio_eio_after_read);
+
+}
+
+void __fsio_eio_after_read(uv_work_t *req) {
+  Nan::HandleScope scope;
+
+  ReadBaton *data = static_cast<ReadBaton *>(req->data);
+
+  Local<Value> argv[2];
+  if (data->errorString[0]) {
+    argv[0] = Nan::Error(data->errorString);
+    argv[1] = Nan::Undefined();
+  } else {
+    argv[0] = Nan::Undefined();
+    argv[1] = Nan::New(data->result);
+  }
+  data->callback->Call(2, argv);
+
+  data->buffer.Reset();
+  delete data->callback;
+  delete data;
+}
+
+
+void fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
   Nan::HandleScope scope;
 
   char *bufferData = node::Buffer::Data(buffer);
@@ -142,50 +198,12 @@ void write_async(int fd, Local<Object> buffer, size_t offset, size_t length, Loc
   write_queue.insert_tail(queuedWrite);
 
   if (empty) {
-    uv_queue_work(uv_default_loop(), &queuedWrite->req, EIO_Write, (uv_after_work_cb) EIO_AfterWrite);
+    uv_queue_work(uv_default_loop(), &queuedWrite->req, __fsio_eio_write, (uv_after_work_cb) __fsio_eio_after_write);
   }
   q->unlock();
 }
 
-void EIO_Write(uv_work_t *req) {
-  QueuedWrite *queuedWrite = static_cast<QueuedWrite *>(req->data);
-  WriteBaton *data = queuedWrite->baton;
-
-  data->result = 0;
-  errno = 0;
-
-  if (!data->length) {
-    DEBUG_LOG("write(%d, 0, 0)", data->fd);
-    data->result = (int) write(data->fd, 0, 0);
-    return;
-  }
-
-  // We carefully *DON'T* break out of this loop.
-  do {
-    if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->length)) == -1) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
-        return;
-
-      // The write call might be interrupted, if it is we just try again immediately.
-      if (errno != EINTR) {
-        snprintf(data->errorString, sizeof(data->errorString), "Error %s calling write(...)", strerror(errno));
-        return;
-      }
-
-      // try again...
-      continue;
-    }
-      // there wasn't an error, do the math on what we actually wrote...
-    else {
-      data->length -= data->result;
-    }
-
-    // if we get there, we really don't want to loop
-    // break;
-  } while (data->length > 0);
-}
-
-void EIO_AfterWrite(uv_work_t *req) {
+void __fsio_eio_after_write(uv_work_t *req) {
   Nan::HandleScope scope;
 
   QueuedWrite *queuedWrite = static_cast<QueuedWrite *>(req->data);
@@ -206,7 +224,7 @@ void EIO_AfterWrite(uv_work_t *req) {
     // Don't re-push the write in the event loop if there was an error; because same error could occur again!
     // TODO: Add a uv_poll here for unix...
     //fprintf(stderr, "Write again...\n");
-    uv_queue_work(uv_default_loop(), req, EIO_Write, (uv_after_work_cb) EIO_AfterWrite);
+    uv_queue_work(uv_default_loop(), req, __fsio_eio_write, (uv_after_work_cb) __fsio_eio_after_write);
     return;
   }
 
@@ -226,7 +244,8 @@ void EIO_AfterWrite(uv_work_t *req) {
   if (!write_queue.empty()) {
     // Always pull the next work item from the head of the queue
     QueuedWrite *nextQueuedWrite = write_queue.next;
-    uv_queue_work(uv_default_loop(), &nextQueuedWrite->req, EIO_Write, (uv_after_work_cb) EIO_AfterWrite);
+    uv_queue_work(uv_default_loop(), &nextQueuedWrite->req, __fsio_eio_write,
+                  (uv_after_work_cb) __fsio_eio_after_write);
   }
   q->unlock();
 
@@ -288,6 +307,54 @@ NAN_METHOD(Poll) {
   info.GetReturnValue().Set(Nan::New(rc ? fds.revents : 0));
 }
 
+NAN_METHOD(Read) {
+  Nan::HandleScope scope;
+
+
+  int fd;
+  char *buf = NULL;
+
+  Local<Object> buffer;
+  size_t offset, length;
+
+  INT_ARG(fd, 0)
+  BUFFER_ARG(buffer, 1)
+  INT_ARG(offset, 2)
+  INT_ARG(length, 3)
+  CALLBACK_ARG(4);
+
+  // buffer
+  char *bufferData = node::Buffer::Data(buffer);
+  size_t bufferLength = node::Buffer::Length(buffer);
+
+  // offset
+  if (offset > bufferLength) {
+    return Nan::ThrowError("Offset is out of bounds");
+  }
+
+  // length
+  if (!Buffer::IsWithinBounds(0, length, bufferLength - offset)) {
+    return Nan::ThrowRangeError("Length extends beyond buffer");
+  }
+
+  buf = bufferData + offset;
+
+  DEBUG_LOG("Reading {offset:%d, length:%d, buffer:%p}", offset, length, buf);
+
+  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
+
+  if (has_callback) {
+    DEBUG_LOG("Read in async");
+    fsio_read(fd, buffer, offset, length, callback);
+    info.GetReturnValue().SetUndefined();
+  } else {
+    DEBUG_LOG("Read in sync");
+    int result = (int) read(fd, length ? buf : 0, length);
+    info.GetReturnValue().Set(Nan::New(result));
+  }
+}
+
+
 void initConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
@@ -319,6 +386,8 @@ void init(v8::Handle<v8::Object> target) {
   Nan::SetMethod(target, "close", Close);
 
   Nan::SetMethod(target, "poll", Poll);
+
+  Nan::SetMethod(target, "read", Read);
 
   Socket::Init(target);
 

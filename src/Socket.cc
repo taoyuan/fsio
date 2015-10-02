@@ -8,6 +8,8 @@
 #include "fsio.h"
 #include "helpers.h"
 
+#include "socket.h"
+
 using namespace v8;
 using namespace node;
 
@@ -38,12 +40,12 @@ Socket::Socket(int fd): _fd(fd),
   uv_poll_init(uv_default_loop(), &_poll_handle, _fd);
   _poll_handle.data = this;
 
-  attach(_fd);
+  fsio_attach(_fd);
 }
 
 Socket::~Socket() {
   delete _callback;
-  detach(_fd);
+  fsio_detach(_fd);
   uv_close((uv_handle_t *) &_poll_handle, (uv_close_cb) Socket::PollCloseCallback);
 }
 
@@ -200,7 +202,7 @@ NAN_METHOD(Socket::Write) {
 
   if (has_callback) {
     DEBUG_LOG("Write in async");
-    write_async(that->_fd, buffer, offset, length, callback);
+    fsio_write(that->_fd, buffer, offset, length, callback);
     info.GetReturnValue().SetUndefined();
   } else {
     DEBUG_LOG("Write in sync");

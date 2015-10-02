@@ -10,5 +10,3 @@ socket.write(buf, function () {
   console.log('done');
   fs.closeSync(fd);
 });
-
-
