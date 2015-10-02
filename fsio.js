@@ -36,6 +36,9 @@ Socket.prototype.readSync = function (buffer, offset, length) {
 };
 
 Socket.prototype.write = function (buffer, offset, length, cb) {
+  if (length === 0) {
+    throw new Error('write 0');
+  }
   if (typeof offset === 'function') {
     cb = offset;
     offset = null;
