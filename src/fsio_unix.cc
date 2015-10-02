@@ -16,8 +16,9 @@ void __fsio_eio_read(uv_work_t *req) {
   data->result = 0;
 
   if (!data->length) { // read 0
-    DEBUG_LOG("read(%d, 0, 0)", data->fd);
+    DEBUG_LOG("read (fd: %d, length: 0)", data->fd);
     data->result = (int) read(data->fd, 0, 0);
+    DEBUG_LOG("read (fd: %d, result: %d)", data->fd, data->result);
     if (data->result < 0) {
       snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
     }
@@ -36,8 +37,6 @@ void __fsio_eio_read(uv_work_t *req) {
   DEBUG_LOG("read (fd: %d, length: %d)", data->fd, data->length);
   if ((data->result = (int) read(data->fd, data->bufferData + data->offset, data->length)) < 0) {
     snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
-    DEBUG_LOG("read (fd: %d, error: %s)", data->fd, data->errorString);
-    return;
   }
 
   DEBUG_LOG("read (fd: %d, result: %d)", data->fd, data->result);
