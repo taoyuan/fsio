@@ -39,6 +39,8 @@ void __fsio_eio_read(uv_work_t *req) {
     return;
   }
 
+  DEBUG_LOG("read (fd: %d, result: %d)", data->fd, data->result);
+
 }
 
 void __fsio_eio_write(uv_work_t *req) {

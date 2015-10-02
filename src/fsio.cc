@@ -157,7 +157,7 @@ void __fsio_eio_after_read(uv_work_t *req) {
     argv[1] = Nan::New(data->result);
   }
 
-  DEBUG_LOG("after read (fd: %d, length: %d)", data->fd, data->result);
+  DEBUG_LOG("after read (fd: %d, result: %d)", data->fd, data->result);
   data->callback->Call(2, argv);
 
   data->buffer.Reset();
