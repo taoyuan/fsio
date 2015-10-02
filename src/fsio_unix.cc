@@ -5,6 +5,7 @@
 #include <nan.h>
 #include <poll.h>
 #include <errno.h>
+#include <unistd.h>
 #include "fsio.h"
 #include "helpers.h"
 
