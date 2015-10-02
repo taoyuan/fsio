@@ -16,9 +16,8 @@ void __fsio_eio_read(uv_work_t *req) {
   data->result = 0;
 
   if (!data->length) { // read 0
-    DEBUG_LOG("--- read 0 begin");
+    DEBUG_LOG("read(%d, 0, 0)", data->fd);
     data->result = (int) read(data->fd, 0, 0);
-    DEBUG_LOG("--- read 0 complete");
     if (data->result < 0) {
       snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
     }
@@ -29,10 +28,12 @@ void __fsio_eio_read(uv_work_t *req) {
   fds.fd = data->fd;
   fds.events = POLLIN;
 
+  DEBUG_LOG("poll(%d, 1, 500)", data->fd);
   if (!poll(&fds, 1, 500) || !(fds.revents & POLLIN)) {
     return;
   }
 
+  DEBUG_LOG("read(%d, {buf}, %p, %d)", data->fd, data->bufferData + data->offset, data->length);
   if ((data->result = (int) read(data->fd, data->bufferData + data->offset, data->length)) < 0) {
     snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
     return;
