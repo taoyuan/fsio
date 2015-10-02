@@ -28,12 +28,12 @@ void __fsio_eio_read(uv_work_t *req) {
   fds.fd = data->fd;
   fds.events = POLLIN;
 
-  DEBUG_LOG("poll(%d, 1, 500)", data->fd);
+  DEBUG_LOG("poll (fd: %d)", data->fd);
   if (!poll(&fds, 1, 500) || !(fds.revents & POLLIN)) {
     return;
   }
 
-  DEBUG_LOG("read(%d, {buf}, %p, %d)", data->fd, data->bufferData + data->offset, data->length);
+  DEBUG_LOG("read (fd: %d, length: %d)", data->fd, data->length);
   if ((data->result = (int) read(data->fd, data->bufferData + data->offset, data->length)) < 0) {
     snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
     return;
@@ -54,6 +54,7 @@ void __fsio_eio_write(uv_work_t *req) {
     return;
   }
 
+  DEBUG_LOG("write (fd: %d, length: %d)", data->fd, data->length);
   // We carefully *DON'T* break out of this loop.
   do {
     if ((data->result = (int) write(data->fd, data->bufferData + data->offset, data->length)) == -1) {

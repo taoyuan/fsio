@@ -157,7 +157,7 @@ void __fsio_eio_after_read(uv_work_t *req) {
     argv[1] = Nan::New(data->result);
   }
 
-  DEBUG_LOG("after read %d", data->fd);
+  DEBUG_LOG("after read (fd: %d, length: %d)", data->fd, data->result);
   data->callback->Call(2, argv);
 
   data->buffer.Reset();
@@ -218,9 +218,11 @@ void __fsio_eio_after_write(uv_work_t *req) {
     argv[0] = Nan::Undefined();
     argv[1] = Nan::New(data->result);
   }
+
+  DEBUG_LOG("after write (fd: %d, length: %d)", data->fd, data->result);
   data->callback->Call(2, argv);
 
-  if (data->length && !data->errorString[0]) {
+  if (!data->bufferLength && data->length && !data->errorString[0]) {
     // We're not done with this baton, so throw it right back onto the queue.
     // Don't re-push the write in the event loop if there was an error; because same error could occur again!
     // TODO: Add a uv_poll here for unix...
