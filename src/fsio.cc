@@ -113,7 +113,6 @@ void fsio_detach(int fd) {
 int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
   Nan::HandleScope scope;
 
-
   char *bufferData = node::Buffer::Data(buffer);
   size_t bufferLength = node::Buffer::Length(buffer);
 
