@@ -36,6 +36,7 @@ void __fsio_eio_read(uv_work_t *req) {
   DEBUG_LOG("read (fd: %d, length: %d)", data->fd, data->length);
   if ((data->result = (int) read(data->fd, data->bufferData + data->offset, data->length)) < 0) {
     snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
+    DEBUG_LOG("read (fd: %d, error: %s)", data->fd, data->errorString);
     return;
   }
 
