@@ -31,7 +31,7 @@ Socket.prototype.stop = function () {
 
 Socket.prototype.readSync = function (buffer, offset, length) {
   offset = offset || 0;
-  length = length || buffer.length;
+  length = length || (buffer.length - offset);
   return this._socket.read(buffer, offset, length);
 };
 
@@ -47,14 +47,14 @@ Socket.prototype.write = function (buffer, offset, length, cb) {
     length = null;
   }
   offset = offset || 0;
-  length = length || buffer.length;
+  length = length || (buffer.length - offset);
   cb = cb || nop;
   return this._socket.write(buffer, offset, length, cb);
 };
 
 Socket.prototype.writeSync = function (buffer, offset, length) {
   offset = offset || 0;
-  length = length || buffer.length;
+  length = length || (buffer.length - offset);
   return this._socket.write(buffer, offset, length);
 };
 
@@ -83,7 +83,7 @@ exports.read = function (fd, buffer, offset, length, cb) {
     length = null;
   }
   offset = offset || 0;
-  length = length || buffer.length;
+  length = length || (buffer.length - offset);
   if (cb) {
     return binding.read(fd, buffer, offset, length, cb);
   } else {

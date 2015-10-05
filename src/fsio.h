@@ -84,7 +84,7 @@ int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<
 void __fsio_eio_read(uv_work_t *req);
 void __fsio_eio_after_read(uv_work_t *req);
 
-void fsio_write(int fd, Local<Object> buf, size_t offset, size_t length, Local<Function> callback);
+int fsio_write(int fd, Local<Object> buf, size_t offset, size_t length, Local<Function> callback);
 void __fsio_eio_write(uv_work_t *req);
 void __fsio_eio_after_write(uv_work_t *req);
 

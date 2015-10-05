@@ -6,6 +6,6 @@ var buf = new Buffer('hello12345');
 
 var socket = fsio.Socket(fd);
 
-socket.writeSync(buf);
+socket.writeSync(buf, 2);
 
 fs.closeSync(fd);

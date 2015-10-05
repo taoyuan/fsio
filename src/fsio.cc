@@ -117,7 +117,7 @@ int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<
   size_t bufferLength = node::Buffer::Length(buffer);
 
   if (callback.IsEmpty()) { // sync
-    int rc = (int) read(fd, bufferData, length);
+    int rc = (int) read(fd, bufferData + offset, length);
     if (rc < 0) {
       throwErrnoError();
     }
@@ -166,11 +166,19 @@ void __fsio_eio_after_read(uv_work_t *req) {
 }
 
 
-void fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
+int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
   Nan::HandleScope scope;
 
   char *bufferData = node::Buffer::Data(buffer);
   size_t bufferLength = node::Buffer::Length(buffer);
+
+  if (callback.IsEmpty()) { // sync
+    int rc = (int) write(fd, bufferData + offset, length);
+    if (rc < 0) {
+      throwErrnoError();
+    }
+    return rc;
+  }
 
   WriteBaton *baton = new WriteBaton();
   memset(baton, 0, sizeof(WriteBaton));
@@ -189,7 +197,8 @@ void fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Loca
 
   _WriteQueue *q = qForFD(fd);
   if (!q) {
-    return Nan::ThrowTypeError("There's no write queue for that file descriptor (write)!");
+    Nan::ThrowTypeError("There's no write queue for that file descriptor (write)!");
+    return -1;
   }
 
   q->lock();

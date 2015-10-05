@@ -6,7 +6,7 @@ var buf = new Buffer('hello12345');
 
 var socket = fsio.Socket(fd);
 
-socket.write(buf, function () {
+socket.write(buf, 2, function () {
   console.log('done');
   fs.closeSync(fd);
 });
