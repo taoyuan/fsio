@@ -97,7 +97,9 @@ int Socket::_write(char *data, size_t length) {
 NAN_METHOD(Socket::New) {
   ENTER_CONSTRUCTOR(1);
 
-  UNWRAP_ARG(Device, device, 0);
+  int fd;
+  INT_ARG(fd, 0);
+  CALLBACK_ARG(1);
 
   Socket *p = new Socket(fd);
   p->_callback = new Nan::Callback(callback);
