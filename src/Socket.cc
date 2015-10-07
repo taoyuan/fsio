@@ -97,9 +97,7 @@ int Socket::_write(char *data, size_t length) {
 NAN_METHOD(Socket::New) {
   ENTER_CONSTRUCTOR(1);
 
-  int fd;
-  INT_ARG(fd, 0);
-  CALLBACK_ARG(1);
+  UNWRAP_ARG(Device, device, 0);
 
   Socket *p = new Socket(fd);
   p->_callback = new Nan::Callback(callback);
@@ -170,7 +168,7 @@ NAN_METHOD(Socket::Read) {
 NAN_METHOD(Socket::Write) {
   ENTER_METHOD(Socket, 3)
 
-  char *buf = NULL;
+//  char *buf = NULL;
 
   Local<Object> buffer;
   size_t offset, length;
@@ -181,7 +179,7 @@ NAN_METHOD(Socket::Write) {
   CALLBACK_ARG(3);
 
   // buffer
-  char *bufferData = node::Buffer::Data(buffer);
+//  char *bufferData = node::Buffer::Data(buffer);
   size_t bufferLength = node::Buffer::Length(buffer);
 
   // offset
@@ -194,19 +192,17 @@ NAN_METHOD(Socket::Write) {
     return Nan::ThrowRangeError("Length extends beyond buffer");
   }
 
-  buf = bufferData + offset;
+//  buf = bufferData + offset;
 
-  DEBUG_LOG("Writing {offset:%d, length:%d, buffer:%p}", offset, length, buf);
+//  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
 
-  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
+  int result = fsio_write(that->_fd, buffer, offset, length, callback);
 
   if (has_callback) {
-    DEBUG_LOG("Write in async");
-    fsio_write(that->_fd, buffer, offset, length, callback);
+//    fsio_write(that->_fd, buffer, offset, length, callback);
     info.GetReturnValue().SetUndefined();
   } else {
-    DEBUG_LOG("Write in sync");
-    int result = p->_write(length ? buf : 0, length);
+//    int result = p->_write(length ? buf : 0, length);
     info.GetReturnValue().Set(Nan::New(result));
   }
 }

@@ -163,6 +163,7 @@ void __fsio_eio_after_read(uv_work_t *req) {
   data->buffer.Reset();
   delete data->callback;
   delete data;
+  delete req;
 }
 
 
