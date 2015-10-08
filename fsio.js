@@ -149,7 +149,6 @@ exports.closeSync = function (path) {
   return binding.close(path);
 };
 
-
 exports.poll = function (fd, events, timeout) {
   return binding.poll(fd, events, timeout);
 };
@@ -170,6 +169,32 @@ exports.read = function (fd, buffer, offset, length, cb) {
     return binding.read(fd, buffer, offset, length);
   }
 };
+
+exports.readSync = function (fd, buffer, offset, length) {
+  return this.read(fd, buffer, offset, length);
+};
+
+exports.write = function (fd, buffer, offset, length, cb) {
+  if (typeof offset === 'function') {
+    cb = offset;
+    offset = null;
+  } else if (typeof length === 'function') {
+    cb = length;
+    length = null;
+  }
+  offset = offset || 0;
+  length = length || (buffer.length - offset);
+  if (cb) {
+    return binding.write(fd, buffer, offset, length, cb);
+  } else {
+    return binding.write(fd, buffer, offset, length);
+  }
+};
+
+exports.writeSync = function (fd, buffer, offset, length) {
+  return this.write(fd, buffer, offset, length);
+};
+
 
 // Open
 exports.O_RDONLY = binding.O_RDONLY;

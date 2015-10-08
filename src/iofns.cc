@@ -107,14 +107,17 @@ void fsio_detach(int fd) {
   }
 }
 
-
 int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
+  return fsio_read(fd, buffer, offset, length, new Nan::Callback(callback));
+}
+
+int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Nan::Callback * callback) {
   Nan::HandleScope scope;
 
   char *bufferData = node::Buffer::Data(buffer);
   size_t bufferLength = node::Buffer::Length(buffer);
 
-  if (callback.IsEmpty()) { // sync
+  if (!callback || callback->IsEmpty()) { // sync
     int rc = (int) read(fd, bufferData + offset, length);
     if (rc < 0) {
       THROW_ERRNO_ERROR();
@@ -132,16 +135,16 @@ int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<
   baton->bufferLength = bufferLength;
   baton->offset = offset;
   baton->length = length;
-  baton->callback = new Nan::Callback(callback);
+  baton->callback = callback;
 
   uv_work_t* req = new uv_work_t();
   req->data = baton;
 
-  uv_queue_work(uv_default_loop(), req, __fsio_eio_read, (uv_after_work_cb) __fsio_eio_after_read);
+  uv_queue_work(uv_default_loop(), req, __fsio_eio_read, (uv_after_work_cb) __fsio_eio_read_done);
 
 }
 
-void __fsio_eio_after_read(uv_work_t *req) {
+void __fsio_eio_read_done(uv_work_t *req) {
   Nan::HandleScope scope;
 
   ReadBaton *data = static_cast<ReadBaton *>(req->data);
@@ -155,7 +158,7 @@ void __fsio_eio_after_read(uv_work_t *req) {
     argv[1] = Nan::New(data->result);
   }
 
-  DEBUG_LOG("after read (fd: %d, result: %d)", data->fd, data->result);
+  DEBUG_LOG("read done (fd: %d, result: %d)", data->fd, data->result);
   data->callback->Call(2, argv);
 
   data->buffer.Reset();
@@ -163,7 +166,6 @@ void __fsio_eio_after_read(uv_work_t *req) {
   delete data;
   delete req;
 }
-
 
 int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Nan::Callback *callback) {
   Nan::HandleScope scope;
@@ -196,8 +198,10 @@ int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Nan::
 
   _WriteQueue *q = qForFD(fd);
   if (!q) {
-    Nan::ThrowTypeError("There's no write queue for that file descriptor (write)!");
-    return -1;
+    q = newQForFD(fd);
+    DEBUG_LOG("There's no write queue for that file descriptor (write), create.", fd);
+//    Nan::ThrowTypeError("There's no write queue for that file descriptor (write)!");
+//    return -1;
   }
 
   q->lock();
@@ -207,7 +211,7 @@ int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Nan::
   write_queue.insert_tail(queuedWrite);
 
   if (empty) {
-    uv_queue_work(uv_default_loop(), &queuedWrite->req, __fsio_eio_write, (uv_after_work_cb) __fsio_eio_after_write);
+    uv_queue_work(uv_default_loop(), &queuedWrite->req, __fsio_eio_write, (uv_after_work_cb) __fsio_eio_write_done);
   }
   q->unlock();
 }
@@ -216,7 +220,7 @@ int fsio_write(int fd, Local<Object> buf, size_t offset, size_t length, Local<Fu
   return fsio_write(fd, buf, offset, length, new Nan::Callback(callback));
 }
 
-void __fsio_eio_after_write(uv_work_t *req) {
+void __fsio_eio_write_done(uv_work_t *req) {
   Nan::HandleScope scope;
 
   QueuedWrite *queuedWrite = static_cast<QueuedWrite *>(req->data);
@@ -231,7 +235,7 @@ void __fsio_eio_after_write(uv_work_t *req) {
     argv[1] = Nan::New(data->result);
   }
 
-  DEBUG_LOG("after write (fd: %d, length: %d)", data->fd, data->result);
+  DEBUG_LOG("write done (fd: %d, length: %d)", data->fd, data->result);
   data->callback->Call(2, argv);
 
   if (!data->bufferLength && data->length && !data->errmsg[0]) {
@@ -239,16 +243,17 @@ void __fsio_eio_after_write(uv_work_t *req) {
     // Don't re-push the write in the event loop if there was an error; because same error could occur again!
     // TODO: Add a uv_poll here for unix...
     //fprintf(stderr, "Write again...\n");
-    uv_queue_work(uv_default_loop(), req, __fsio_eio_write, (uv_after_work_cb) __fsio_eio_after_write);
+    uv_queue_work(uv_default_loop(), req, __fsio_eio_write, (uv_after_work_cb) __fsio_eio_write_done);
     return;
   }
 
   int fd = data->fd;
   _WriteQueue *q = qForFD(fd);
   if (!q) {
-    return Nan::ThrowTypeError("There's no write queue for that file descriptor (after write)!");
+    return Nan::ThrowTypeError("There's no write queue for that file descriptor (write done)!");
   }
 
+  bool empty;
   q->lock();
   QueuedWrite &write_queue = q->get();
 
@@ -256,13 +261,19 @@ void __fsio_eio_after_write(uv_work_t *req) {
   queuedWrite->remove();
 
   // If there are any left, start a new thread to write the next one.
-  if (!write_queue.empty()) {
+  if (!(empty = write_queue.empty())) {
     // Always pull the next work item from the head of the queue
     QueuedWrite *nextQueuedWrite = write_queue.next;
     uv_queue_work(uv_default_loop(), &nextQueuedWrite->req, __fsio_eio_write,
-                  (uv_after_work_cb) __fsio_eio_after_write);
+                  (uv_after_work_cb) __fsio_eio_write_done);
   }
   q->unlock();
+
+  // remove if empty
+  if (empty) {
+    DEBUG_LOG("The write queue for fd %d is empty (write done), delete", fd);
+    deleteQForFD(fd);
+  }
 
   data->buffer.Reset();
   delete data->callback;
@@ -325,9 +336,7 @@ NAN_METHOD(Poll) {
 NAN_METHOD(Read) {
   Nan::HandleScope scope;
 
-
   int fd;
-  char *buf = NULL;
 
   Local<Object> buffer;
   size_t offset, length;
@@ -336,11 +345,10 @@ NAN_METHOD(Read) {
   BUFFER_ARG(buffer, 1);
   INT_ARG(offset, 2);
   INT_ARG(length, 3);
-  CALLBACK_ARG(4);
+  NAN_CALLBACK_ARG(4);
 
   // buffer
-  char *bufferData = node::Buffer::Data(buffer);
-  size_t bufferLength = node::Buffer::Length(buffer);
+  size_t bufferLength = Buffer::Length(buffer);
 
   // offset
   if (offset > bufferLength) {
@@ -352,20 +360,51 @@ NAN_METHOD(Read) {
     return Nan::ThrowRangeError("Length extends beyond buffer");
   }
 
-  buf = bufferData + offset;
+  int result = fsio_read(fd, buffer, offset, length, callback);
 
-  DEBUG_LOG("Reading {offset:%d, length:%d, buffer:%p}", offset, length, buf);
-
-  if (!callback.IsEmpty()) {
-    DEBUG_LOG("Read in async");
-    fsio_read(fd, buffer, offset, length, callback);
+  if (callback && !callback->IsEmpty()) {
     info.GetReturnValue().SetUndefined();
   } else {
-    DEBUG_LOG("Read in sync");
-    int result = (int) read(fd, length ? buf : 0, length);
     info.GetReturnValue().Set(Nan::New(result));
   }
 }
+
+NAN_METHOD(Write) {
+  Nan::HandleScope scope;
+
+  int fd;
+
+  Local<Object> buffer;
+  size_t offset, length;
+
+  INT_ARG(fd, 0);
+  BUFFER_ARG(buffer, 1);
+  INT_ARG(offset, 2);
+  INT_ARG(length, 3);
+  NAN_CALLBACK_ARG(4);
+
+  // buffer
+  size_t bufferLength = Buffer::Length(buffer);
+
+  // offset
+  if (offset > bufferLength) {
+    return Nan::ThrowError("Offset is out of bounds");
+  }
+
+  // length
+  if (!Buffer::IsWithinBounds(0, length, bufferLength - offset)) {
+    return Nan::ThrowRangeError("Length extends beyond buffer");
+  }
+
+  int result = fsio_write(fd, buffer, offset, length, callback);
+
+  if (callback && !callback->IsEmpty()) {
+    info.GetReturnValue().SetUndefined();
+  } else {
+    info.GetReturnValue().Set(Nan::New(result));
+  }
+}
+
 
 void initConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
@@ -398,6 +437,7 @@ void InitIOFns(Handle<Object> target) {
   Nan::SetMethod(target, "poll", Poll);
 
   Nan::SetMethod(target, "read", Read);
+  Nan::SetMethod(target, "write", Write);
 
   initConstants(target);
 }
