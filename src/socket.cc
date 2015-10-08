@@ -173,18 +173,15 @@ NAN_METHOD(Socket::Read) {
 NAN_METHOD(Socket::Write) {
   ENTER_METHOD(Socket, 3)
 
-//  char *buf = NULL;
-
   Local<Object> buffer;
   size_t offset, length;
 
   BUFFER_ARG(buffer, 0)
   INT_ARG(offset, 1)
   INT_ARG(length, 2)
-  CALLBACK_ARG(3);
+  NAN_CALLBACK_ARG(3);
 
   // buffer
-//  char *bufferData = node::Buffer::Data(buffer);
   size_t bufferLength = node::Buffer::Length(buffer);
 
   // offset
@@ -197,17 +194,11 @@ NAN_METHOD(Socket::Write) {
     return Nan::ThrowRangeError("Length extends beyond buffer");
   }
 
-//  buf = bufferData + offset;
-
-//  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
-
   int result = fsio_write(that->_fd, buffer, offset, length, callback);
 
-  if (!callback.IsEmpty()) {
-//    fsio_write(that->_fd, buffer, offset, length, callback);
+  if (callback) {
     info.GetReturnValue().SetUndefined();
   } else {
-//    int result = p->_write(length ? buf : 0, length);
     info.GetReturnValue().Set(Nan::New(result));
   }
 }
