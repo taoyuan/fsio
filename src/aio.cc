@@ -4,6 +4,7 @@
 
 #include "helpers.h"
 #include "aio.h"
+#include "iofns.h"
 
 using namespace Nan;
 using namespace v8;
@@ -82,9 +83,12 @@ private:
 AIO::AIO(int fd, size_t bufsize) :
   _fd(fd), _bufsize(bufsize), _rbaton(NULL), _wbaton(NULL) {
 
+  // temperary for write
+  fsio_attach(_fd);
 }
 
 AIO::~AIO() {
+  fsio_detach(_fd);
   if (_rbaton) delete _rbaton;
   _rbaton = NULL;
   if (_wbaton) delete _wbaton;
@@ -128,7 +132,35 @@ NAN_METHOD(AIO::Read) {
 }
 
 NAN_METHOD(AIO::Write) {
+  ENTER_METHOD(AIO, 3)
 
+  Local<Object> buffer;
+  size_t offset, length;
+
+  BUFFER_ARG(buffer, 0);
+  INT_ARG(offset, 1);
+  INT_ARG(length, 2);
+  NAN_CALLBACK_ARG(3);
+
+  size_t bufferLength = Buffer::Length(buffer);
+
+  // offset
+  if (offset > bufferLength) {
+    return Nan::ThrowError("Offset is out of bounds");
+  }
+
+  // length
+  if (!Buffer::IsWithinBounds(0, length, bufferLength - offset)) {
+    return Nan::ThrowRangeError("Length extends beyond buffer");
+  }
+
+  int result = fsio_write(that->_fd, buffer, offset, length, callback);
+
+  if (callback) {
+    info.GetReturnValue().SetUndefined();
+  } else {
+    info.GetReturnValue().Set(Nan::New(result));
+  }
 }
 
 void AIO::Init(Handle<Object> target) {

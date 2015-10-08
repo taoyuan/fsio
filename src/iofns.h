@@ -82,12 +82,13 @@ void fsio_attach(int fd);
 
 void fsio_detach(int fd);
 
-int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback);
+static int fsio_read(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback);
 
 void __fsio_eio_read(uv_work_t *req);
 
 void __fsio_eio_after_read(uv_work_t *req);
 
+int fsio_write(int fd, Local<Object> buf, size_t offset, size_t length, Nan::Callback *callback);
 int fsio_write(int fd, Local<Object> buf, size_t offset, size_t length, Local<Function> callback);
 
 void __fsio_eio_write(uv_work_t *req);

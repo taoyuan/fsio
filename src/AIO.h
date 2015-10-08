@@ -45,7 +45,7 @@ public:
   // read(timeout, callback)
   static NAN_METHOD(Read);
 
-  // write(buffer, timeout, callback)
+  // write(buffer, offset, length, callback)
   static NAN_METHOD(Write);
 
 private:

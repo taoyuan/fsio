@@ -105,6 +105,21 @@ AIO.prototype.read = function (timeout, cb) {
   return this._aio.read(timeout, cb);
 };
 
+AIO.prototype.write = function (buffer, offset, length, cb) {
+  if (typeof offset === 'function') {
+    cb = offset;
+    offset = null;
+  } else if (typeof length === 'function') {
+    cb = length;
+    length = null;
+  }
+  offset = offset || 0;
+  length = length || (buffer.length - offset);
+  cb = cb || nop;
+
+  return this._aio.write(buffer, offset, length, cb);
+};
+
 exports.aio = exports.AIO = AIO;
 
 // iofns

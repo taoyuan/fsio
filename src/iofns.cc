@@ -165,13 +165,13 @@ void __fsio_eio_after_read(uv_work_t *req) {
 }
 
 
-int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Local<Function> callback) {
+int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Nan::Callback *callback) {
   Nan::HandleScope scope;
 
   char *bufferData = node::Buffer::Data(buffer);
   size_t bufferLength = node::Buffer::Length(buffer);
 
-  if (callback.IsEmpty()) { // sync
+  if (!callback || callback->IsEmpty()) { // sync
     int rc = (int) write(fd, bufferData + offset, length);
     if (rc < 0) {
       THROW_ERRNO_ERROR();
@@ -187,7 +187,7 @@ int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Local
   baton->bufferLength = bufferLength;
   baton->offset = offset;
   baton->length = length;
-  baton->callback = new Nan::Callback(callback);
+  baton->callback = callback;
 
   QueuedWrite *queuedWrite = new QueuedWrite();
   memset(queuedWrite, 0, sizeof(QueuedWrite));
@@ -210,6 +210,10 @@ int fsio_write(int fd, Local<Object> buffer, size_t offset, size_t length, Local
     uv_queue_work(uv_default_loop(), &queuedWrite->req, __fsio_eio_write, (uv_after_work_cb) __fsio_eio_after_write);
   }
   q->unlock();
+}
+
+int fsio_write(int fd, Local<Object> buf, size_t offset, size_t length, Local<Function> callback) {
+  return fsio_write(fd, buf, offset, length, new Nan::Callback(callback));
 }
 
 void __fsio_eio_after_write(uv_work_t *req) {
