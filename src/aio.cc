@@ -127,6 +127,8 @@ NAN_METHOD(AIO::Read) {
 
   that->_rbaton->timeout = timeout;
 
+  DEBUG_LOG("[aio] Submiting read (fd: %d, bufsize: %d)", that->_fd, (int) that->_bufsize);
+
   AsyncQueueWorker(new AIOReadWorker(callback, that->_rbaton));
   info.GetReturnValue().SetUndefined();
 }
@@ -153,6 +155,8 @@ NAN_METHOD(AIO::Write) {
   if (!Buffer::IsWithinBounds(0, length, bufferLength - offset)) {
     return Nan::ThrowRangeError("Length extends beyond buffer");
   }
+
+  DEBUG_LOG("[aio] Submiting write (fd: %d, length: %d, buffer: %p)", that->_fd, (int) length, buffer);
 
   int result = fsio_write(that->_fd, buffer, offset, length, callback);
 
