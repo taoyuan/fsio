@@ -19,7 +19,7 @@ public:
     aio->aio_fildes = fd;
     aio->aio_sigevent.sigev_notify = SIGEV_NONE;
     aio->aio_nbytes = size;
-    aio->aio_buf = static_cast<char *>(malloc((size)));
+    aio->aio_buf = malloc(size);
   }
 
   ~AIOBaton() {

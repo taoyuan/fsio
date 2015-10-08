@@ -14,26 +14,29 @@ Nan::Persistent<FunctionTemplate> AIO::constructor_template;
 class AIOReadWorker : public AsyncWorker {
 public:
   AIOReadWorker(Callback *callback, AIOBaton *baton)
-    : AsyncWorker(callback), _baton(baton) {
-    _baton->busy = true;
+    : AsyncWorker(callback), baton(baton), data(NULL), length(0) {
+    baton->busy = true;
   }
 
-  ~AIOReadWorker() { }
+  ~AIOReadWorker() {
+    if (data) free(data);
+    data = NULL;
+  }
 
   void Execute() {
 
     errno = 0;
-    aiocb *aio = _baton->aio;
+    aiocb *aio = baton->aio;
 
-    int rc = aio_read(_baton->aio);
+    int rc = aio_read(baton->aio);
     if (rc) {
       SetErrorMessage(strerror(errno));
     } else while (1) {
       rc = aio_error(aio);
-      if (rc == EINPROGRESS && _baton->timeout) {
+      if (rc == EINPROGRESS && baton->timeout) {
         struct timespec ts;
-        ts.tv_sec = _baton->timeout / 1000;
-        ts.tv_nsec = 1000000L * (_baton->timeout % 1000);
+        ts.tv_sec = baton->timeout / 1000;
+        ts.tv_nsec = 1000000L * (baton->timeout % 1000);
         if (aio_suspend(&aio, 1, &ts)) {
           continue;
         } else {
@@ -53,23 +56,27 @@ public:
           break;
         }
         DEBUG_LOG("Received %d bytes from gadgetfs fd %d", rc, aio->aio_fildes);
-//        _result = CopyBuffer((char *) (aio->aio_buf), (uint32_t) rc);
-        DEBUG_LOG("Copied data");
+        length = (size_t) rc;
+        data = static_cast<char *>(malloc(length));
+        memcpy(data, (void*) (aio->aio_buf), length);
         break;
       }
     }
 
-    _baton->busy = false;
+    baton->busy = false;
   }
 
   void HandleOKCallback() {
-    Local<Value> argv[] = {Nan::Undefined(), Nan::Undefined()};
+    Local<Value> argv[] = {Nan::Undefined(), NewBuffer(data, (uint32_t) length).ToLocalChecked()};
     callback->Call(2, argv);
+    data = NULL;
+    length = 0;
   }
 
 private:
-  AIOBaton *_baton;
-  MaybeLocal<Object> _result;
+  AIOBaton *baton;
+  char * data;
+  size_t length;
 };
 
 AIO::AIO(int fd, size_t bufsize) :
