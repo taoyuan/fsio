@@ -91,6 +91,7 @@ function AIO(fd, bufferSize) {
   }
   bufferSize = bufferSize || 1024;
   this._aio = new binding.AIO(fd, bufferSize);
+  this.fd = fd;
 }
 
 AIO.prototype.read = function (timeout, cb) {
