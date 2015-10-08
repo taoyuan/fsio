@@ -120,6 +120,23 @@ AIO.prototype.write = function (buffer, offset, length, cb) {
   return this._aio.write(buffer, offset, length, cb);
 };
 
+AIO.prototype.poll = function (timeout, cb) {
+  if (typeof timeout === 'function') {
+    cb = timeout;
+    timeout = null;
+  }
+  var that = this;
+  function read() {
+    that.read(timeout, function (err, data) {
+      if (err) return cb(err);
+      cb(err, data);
+      read();
+    });
+  }
+
+  read();
+};
+
 exports.aio = exports.AIO = AIO;
 
 // iofns
