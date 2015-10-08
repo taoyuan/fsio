@@ -14,6 +14,6 @@ var socket = new fsio.Socket(fd, function (data) {
 
 });
 
-socket.start();
+socket.startPoll();
 
 console.log('started');

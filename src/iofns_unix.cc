@@ -6,7 +6,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <unistd.h>
-#include "fsio.h"
+#include "iofns.h"
 #include "helpers.h"
 
 void __fsio_eio_read(uv_work_t *req) {
@@ -20,7 +20,7 @@ void __fsio_eio_read(uv_work_t *req) {
     data->result = (int) read(data->fd, 0, 0);
     DEBUG_LOG("read (fd: %d, result: %d)", data->fd, data->result);
     if (data->result < 0) {
-      snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
+      snprintf(data->errmsg, sizeof(data->errmsg), "Error %s calling read(...)", strerror(errno));
     }
     return;
   }
@@ -33,8 +33,8 @@ void __fsio_eio_read(uv_work_t *req) {
   int ret =  poll(&fds, 1, 500);
   if (!ret || !(fds.revents & POLLIN)) {
     if (ret < 0) {
-      snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
-      DEBUG_LOG("poll (fd: %d, error: %s)", data->fd, data->errorString);
+      snprintf(data->errmsg, sizeof(data->errmsg), "Error %s calling read(...)", strerror(errno));
+      DEBUG_LOG("poll (fd: %d, error: %s)", data->fd, data->errmsg);
     }
     DEBUG_LOG("poll finish with no data (fd: %d)", data->fd);
     return;
@@ -42,8 +42,8 @@ void __fsio_eio_read(uv_work_t *req) {
 
   DEBUG_LOG("read (fd: %d, length: %d)", data->fd, data->length);
   if ((data->result = (int) read(data->fd, data->bufferData + data->offset, data->length)) < 0) {
-    snprintf(data->errorString, sizeof(data->errorString), "Error %s calling read(...)", strerror(errno));
-    DEBUG_LOG("poll (fd: %d, error: %s)", data->fd, data->errorString);
+    snprintf(data->errmsg, sizeof(data->errmsg), "Error %s calling read(...)", strerror(errno));
+    DEBUG_LOG("poll (fd: %d, error: %s)", data->fd, data->errmsg);
   }
 
   DEBUG_LOG("read (fd: %d, result: %d)", data->fd, data->result);
@@ -72,7 +72,7 @@ void __fsio_eio_write(uv_work_t *req) {
 
       // The write call might be interrupted, if it is we just try again immediately.
       if (errno != EINTR) {
-        snprintf(data->errorString, sizeof(data->errorString), "Error %s calling write(...)", strerror(errno));
+        snprintf(data->errmsg, sizeof(data->errmsg), "Error %s calling write(...)", strerror(errno));
         return;
       }
 

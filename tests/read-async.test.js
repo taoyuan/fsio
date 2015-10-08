@@ -1,7 +1,7 @@
 var fs = require('fs');
 var fsio = require('../');
 
-var fd = fs.openSync('/dev/stdin', fsio.O_WRONLY);
+var fd = fsio.openSync('/dev/stdin', fsio.O_RDONLY);
 var buf = new Buffer(100);
 
 function read() {

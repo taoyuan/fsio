@@ -5,10 +5,11 @@
 #include <node.h>
 #include <node_buffer.h>
 #include <nan.h>
-#include "fsio.h"
-#include "helpers.h"
 
+#include "errors.h"
+#include "helpers.h"
 #include "socket.h"
+#include "iofns.h"
 
 using namespace v8;
 using namespace node;
@@ -19,38 +20,44 @@ void Socket::Init(Handle<Object> target) {
   Nan::HandleScope scope;
 
   // Prepare constructor template
-  Local<FunctionTemplate> ctor = Nan::New<FunctionTemplate>(New);
-  constructor_template.Reset(ctor);
+  Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);
+  constructor_template.Reset(tpl);
 
-  ctor->InstanceTemplate()->SetInternalFieldCount(1);
-  ctor->SetClassName(Nan::New("Socket").ToLocalChecked());
+  tpl->InstanceTemplate()->SetInternalFieldCount(1);
+  tpl->SetClassName(Nan::New("Socket").ToLocalChecked());
 
   // Prototype
-  Nan::SetPrototypeMethod(ctor, "start", Start);
-  Nan::SetPrototypeMethod(ctor, "stop", Stop);
-  Nan::SetPrototypeMethod(ctor, "read", Read);
-  Nan::SetPrototypeMethod(ctor, "write", Write);
+  Nan::SetPrototypeMethod(tpl, "start", Start);
+  Nan::SetPrototypeMethod(tpl, "stop", Stop);
+  Nan::SetPrototypeMethod(tpl, "read", Read);
+  Nan::SetPrototypeMethod(tpl, "write", Write);
 
-  target->Set(Nan::New("Socket").ToLocalChecked(), ctor->GetFunction());
+  target->Set(Nan::New("Socket").ToLocalChecked(), tpl->GetFunction());
 }
 
-Socket::Socket(int fd): _fd(fd),
-  node::ObjectWrap() {
+Socket::Socket(int fd): _fd(fd) {
 
-  uv_poll_init(uv_default_loop(), &_poll_handle, _fd);
-  _poll_handle.data = this;
+  memset(&_poll_handle, 0, sizeof(uv_poll_t));
 
   fsio_attach(_fd);
+
+  DEBUG_LOG("Created socket %p with fd: %d", this, _fd);
 }
 
 Socket::~Socket() {
+  DEBUG_LOG("Destory socket %p with fd: %d", this, _fd);
   delete _callback;
   fsio_detach(_fd);
   uv_close((uv_handle_t *) &_poll_handle, (uv_close_cb) Socket::PollCloseCallback);
 }
 
 void Socket::start() {
-  uv_poll_start(&this->_poll_handle, UV_READABLE, Socket::PollCallback);
+  DEBUG_LOG("Start socket %p poll with fd: %d", this, _fd);
+  if (!_poll_handle.data) {
+    uv_poll_init(uv_default_loop(), &_poll_handle, _fd);
+    _poll_handle.data = this;
+  }
+  uv_poll_start(&_poll_handle, UV_READABLE, Socket::PollCallback);
 }
 
 void Socket::poll() {
@@ -59,7 +66,9 @@ void Socket::poll() {
   int length = 0;
   char data[1024];
 
+  DEBUG_LOG("poll read befter");
   length = (int) read(this->_fd, data, sizeof(data));
+  DEBUG_LOG("poll read after %i", length);
 
   if (!_callback->IsEmpty() && length > 0) {
     Local<Value> argv[1] = {
@@ -81,7 +90,7 @@ void Socket::stop() {
 int Socket::_read(char *data, size_t length) {
   int result = (int) read(this->_fd, data, length);
   if (result < 0) {
-    throwErrnoError();
+    THROW_ERRNO_ERROR();
   }
   return result;
 }
@@ -89,7 +98,7 @@ int Socket::_read(char *data, size_t length) {
 int Socket::_write(char *data, size_t length) {
   int result = (int) write(this->_fd, data, length);
   if (result < 0) {
-    throwErrnoError();
+    THROW_ERRNO_ERROR();
   }
   return result;
 }
@@ -112,9 +121,7 @@ NAN_METHOD(Socket::New) {
 NAN_METHOD(Socket::Start) {
   ENTER_METHOD(Socket, 0)
 
-  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
-
-  p->start();
+  that->start();
 
   info.GetReturnValue().SetUndefined();
 }
@@ -122,9 +129,7 @@ NAN_METHOD(Socket::Start) {
 NAN_METHOD(Socket::Stop) {
   ENTER_METHOD(Socket, 0)
 
-  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
-
-  p->stop();
+  that->stop();
 
   info.GetReturnValue().SetUndefined();
 }
@@ -160,9 +165,7 @@ NAN_METHOD(Socket::Read) {
 
   DEBUG_LOG("Reading {offset:%d, length:%d, buffer:%p}", offset, length, buf);
 
-  Socket *p = node::ObjectWrap::Unwrap<Socket>(info.This());
-
-  int result = p->_read(length ? buf : 0, length);
+  int result = that->_read(length ? buf : 0, length);
 
   info.GetReturnValue().Set(Nan::New(result));
 }
@@ -200,7 +203,7 @@ NAN_METHOD(Socket::Write) {
 
   int result = fsio_write(that->_fd, buffer, offset, length, callback);
 
-  if (has_callback) {
+  if (!callback.IsEmpty()) {
 //    fsio_write(that->_fd, buffer, offset, length, callback);
     info.GetReturnValue().SetUndefined();
   } else {

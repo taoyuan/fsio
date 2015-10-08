@@ -8,20 +8,13 @@
 #include <vector>
 #include <v8.h>
 #include <nan.h>
+#include <errno.h>
 #include <node_buffer.h>
 
 using namespace v8;
+using namespace node;
 
-//#define DEBUG
-
-#ifdef DEBUG
-#define DEBUG_HEADER fprintf(stderr, "fsio [%s:%s() %d]: ", __FILE__, __FUNCTION__, __LINE__);
-  #define DEBUG_FOOTER fprintf(stderr, "\n");
-  #define DEBUG_LOG(...) DEBUG_HEADER fprintf(stderr, __VA_ARGS__); DEBUG_FOOTER
-#else
-#define DEBUG_LOG(...)
-#endif
-
+#define DEBUG
 
 #define V8STR(str) Nan::New<String>(str).ToLocalChecked()
 #define V8SYM(str) Nan::New<String>(str).ToLocalChecked()
@@ -36,30 +29,9 @@ inline static void setConst(Handle<Object> obj, const char* const name, Handle<V
   obj->ForceSet(Nan::New<String>(name).ToLocalChecked(), value, CONST_PROP);
 }
 
-inline static void throwErrnoError() {
-  Nan::HandleScope scope;
-
-  Local<Object> globalObj = Nan::GetCurrentContext()->Global();
-  Local<Function> errorConstructor = Local<Function>::Cast(globalObj->Get(Nan::New("Error").ToLocalChecked()));
-
-  Local<Value> constructorArgs[1] = {
-    Nan::New(strerror(errno)).ToLocalChecked()
-  };
-
-  Local<Value> error = errorConstructor->NewInstance(1, constructorArgs);
-
-  Nan::ThrowError(error);
-
-//  Local<Value> argv[2] = {
-//    Nan::New("error").ToLocalChecked(),
-//    error
-//  };
-//
-//  Nan::MakeCallback(Nan::New<Object>(this->This), Nan::New("emit").ToLocalChecked(), 2, argv);
-}
-
 #define ENTER_CONSTRUCTOR(MIN_ARGS) \
-  Nan::HandleScope scope;         \
+	Nan::HandleScope scope;              \
+	if (!info.IsConstructCall()) return Nan::ThrowError("Must be called with `new`!"); \
 	CHECK_N_ARGS(MIN_ARGS);
 
 #define ENTER_CONSTRUCTOR_POINTER(CLASS, MIN_ARGS) \
@@ -71,15 +43,19 @@ inline static void throwErrnoError() {
 	that->attach(info.This())
 
 #define ENTER_METHOD(CLASS, MIN_ARGS) \
-  Nan::HandleScope scope;         \
+	Nan::HandleScope scope;                \
 	CHECK_N_ARGS(MIN_ARGS);           \
-	CLASS *that = node::ObjectWrap::Unwrap<CLASS>(info.This()); \
+	auto that = Nan::ObjectWrap::Unwrap<CLASS>(info.This()); \
 	if (that == NULL) { THROW_BAD_ARGS(#CLASS " method called on invalid object") }
+
+#define ENTER_ACCESSOR(CLASS) \
+		Nan::HandleScope scope;                \
+		auto that = Nan::ObjectWrap::Unwrap<CLASS>(info.Holder());
 
 #define UNWRAP_ARG(CLASS, NAME, ARGNO)     \
 	if (!info[ARGNO]->IsObject())          \
 		THROW_BAD_ARGS("Parameter " #NAME " is not an object"); \
-	auto NAME = node::ObjectWrap::Unwrap<CLASS>(Handle<Object>::Cast(info[ARGNO])); \
+	auto NAME = Nan::ObjectWrap::Unwrap<CLASS>(Handle<Object>::Cast(info[ARGNO])); \
 	if (!NAME)                             \
 		THROW_BAD_ARGS("Parameter " #NAME " (" #ARGNO ") is of incorrect type");
 
@@ -115,13 +91,38 @@ inline static void throwErrnoError() {
 
 #define CALLBACK_ARG(CALLBACK_ARG_IDX) \
 	Local<Function> callback; \
-  bool has_callback = false; \
 	if (info.Length() > (CALLBACK_ARG_IDX)) { \
 		if (!info[CALLBACK_ARG_IDX]->IsFunction()) { \
-			return Nan::ThrowTypeError("Argument " #CALLBACK_ARG_IDX " must be a function"); \
-		} \
-		callback = Local<Function>::Cast(info[CALLBACK_ARG_IDX]); \
-    has_callback = true; \
+			 /* return Nan::ThrowTypeError("Argument " #CALLBACK_ARG_IDX " must be a function"); */ \
+		} else { \
+      callback = Local<Function>::Cast(info[CALLBACK_ARG_IDX]); \
+    } \
 	}
+
+#define NAN_CALLBACK_ARG(CALLBACK_ARG_IDX) \
+	Nan::Callback *callback = NULL; \
+	if (info.Length() > (CALLBACK_ARG_IDX)) { \
+		if (!info[CALLBACK_ARG_IDX]->IsFunction()) { \
+			 /* return Nan::ThrowTypeError("Argument " #CALLBACK_ARG_IDX " must be a function"); */ \
+		} else { \
+      callback = new Nan::Callback(info[CALLBACK_ARG_IDX].As<Function>()); \
+    } \
+	}
+
+#ifdef DEBUG
+#define DEBUG_HEADER fprintf(stderr, "fsio [%s:%s() %d]: ", __FILE__, __FUNCTION__, __LINE__);
+#define DEBUG_FOOTER fprintf(stderr, "\n");
+#define DEBUG_LOG(...) DEBUG_HEADER fprintf(stderr, __VA_ARGS__); DEBUG_FOOTER
+#else
+#define DEBUG_LOG(...)
+#endif
+
+inline static Local<Value> CREATE_ERRNO_ERROR(int errorno) {
+  const char* err = strerror(errorno);
+  Local<Value> e  = Nan::Error(err);
+  e->ToObject()->Set(Nan::New("errno").ToLocalChecked(), Nan::New(errorno));
+  e->ToObject()->Set(Nan::New("code").ToLocalChecked(), Nan::New(errorno));
+  return e;
+}
 
 #endif //FSIO_HELPERS_H

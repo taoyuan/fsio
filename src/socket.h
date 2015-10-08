@@ -1,42 +1,55 @@
+//
+// Created by 陶源 on 15/10/8.
+//
+
 #ifndef FSIO_SOCKET_H
 #define FSIO_SOCKET_H
 
 #include <nan.h>
 
-class Socket : public node::ObjectWrap {
+class Socket : public Nan::ObjectWrap {
 
 public:
-    static void Init(Handle<Object> target);
+  static void Init(Handle<Object> target);
 
-    static NAN_METHOD(New);
-    static NAN_METHOD(Start);
-    static NAN_METHOD(Stop);
-    static NAN_METHOD(Read);
-    static NAN_METHOD(Write);
+  static NAN_METHOD(New);
 
-private:
-    Socket(int fd);
-    ~Socket();
+  static NAN_METHOD(Start);
 
-    void start();
-    void stop();
+  static NAN_METHOD(Stop);
 
-    int _read(char *data, size_t length);
-    int _write(char *data, size_t length);
+  static NAN_METHOD(Read);
 
-    void poll();
-
-    static void PollCloseCallback(uv_poll_t* handle);
-    static void PollCallback(uv_poll_t* handle, int status, int events);
+  static NAN_METHOD(Write);
 
 private:
-    Nan::Persistent<v8::Object> This;
+  int _fd;
+  uv_poll_t _poll_handle;
+  Nan::Callback *_callback;
 
-    int _fd;
-    uv_poll_t _poll_handle;
-    Nan::Callback* _callback;
+private:
+  Socket(int fd);
 
-    static Nan::Persistent<v8::FunctionTemplate> constructor_template;
+  ~Socket();
+
+  void start();
+
+  void stop();
+
+  int _read(char *data, size_t length);
+
+  int _write(char *data, size_t length);
+
+  void poll();
+
+  static void PollCloseCallback(uv_poll_t *handle);
+
+  static void PollCallback(uv_poll_t *handle, int status, int events);
+
+private:
+  static Nan::Persistent<FunctionTemplate> constructor_template;
+  Nan::Persistent<Object> This;
 };
 
-#endif
+
+#endif //FSIO_SOCKET_H

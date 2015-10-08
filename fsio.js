@@ -1,11 +1,14 @@
 'use strict';
 
+var fs = require('fs');
 var util = require('util');
 var events = require('events');
 var binding = require('./build/Release/fsio');
 
 var nop = function () {};
 
+
+// Socket
 function Socket(fd, cb) {
   if (!(this instanceof Socket)) {
     return new Socket(fd, cb);
@@ -13,9 +16,28 @@ function Socket(fd, cb) {
   cb = cb || nop;
   this._socket = new binding.Socket(fd, cb);
   this.fd = fd;
+  this.cb = cb;
 }
 
 util.inherits(Socket, events.EventEmitter);
+
+Socket.prototype.startPoll = function () {
+  this._read();
+};
+
+Socket.prototype._read = function () {
+  var that = this;
+  var buffer = new Buffer(1024);
+  console.log('socket poll read');
+  fs.read(this.fd, buffer, 0, buffer.length, null, function (err, bytesRead, buffer) {
+    console.log('socket poll read', bytesRead);
+    if (err) throw err;
+    if (bytesRead > 0 && that.cb) {
+      that.cb(buffer.slice(0, bytesRead));
+    }
+    that._read();
+  });
+};
 
 Socket.prototype.start = function () {
   if (this._started) return;
@@ -61,6 +83,31 @@ Socket.prototype.writeSync = function (buffer, offset, length) {
 
 exports.Socket = Socket;
 
+// aio
+
+function AIO(fd, bufferSize) {
+  if (!(this instanceof AIO)) {
+    return new AIO(fd, bufferSize);
+  }
+  bufferSize = bufferSize || 1024;
+  this._aio = new binding.AIO(fd, bufferSize);
+}
+
+AIO.prototype.read = function (timeout, cb) {
+  if (typeof timeout === 'function') {
+    cb = timeout;
+    timeout = null;
+  }
+
+  timeout = timeout || 500;
+  //cb = cb || nop;
+
+  return this._aio.read(timeout, cb);
+};
+
+exports.aio = exports.AIO = AIO;
+
+// iofns
 exports.openSync = function (path, flag) {
   return binding.open(path, flag);
 };
