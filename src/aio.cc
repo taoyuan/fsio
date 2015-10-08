@@ -37,7 +37,7 @@ public:
     }
 
     while (1) {
-      DEBUG_LOG("[aio] read worker execute");
+//      DEBUG_LOG("[aio] read worker execute");
       rc = aio_error(aio);
       if (rc == EINPROGRESS && baton->timeout) {
         struct timespec ts;
